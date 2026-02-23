@@ -1,0 +1,40 @@
+# IDE / OS
+*.iml
+.idea/
+.DS_Store
+
+# Build directories and caches
+build/
+.gradle/
+.kotlin/
+.externalNativeBuild/
+.cxx/
+captures/
+
+# Local configuration
+local.properties
+key.properties
+
+# Crashlytics configurations
+com_crashlytics_export_strings.xml
+
+# Signing files
+.signing/
+*.pem
+
+# Built application files
+*.apk
+*.aar
+*.ap_
+*.aab
+
+# Generated Files
+**/GeneratedPluginRegistrant.java
+
+# Release output metadata
+/app/production_transition/release/output-metadata.json
+/app/production/release/output-metadata.json
+/app/uat_transition/release/output-metadata.json
+/app/uat/release/output-metadata.json
+/app/development_transition/release/output-metadata.json
+/app/development/release/output-metadata.json
