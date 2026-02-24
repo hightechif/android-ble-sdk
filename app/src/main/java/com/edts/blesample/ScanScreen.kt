@@ -84,7 +84,10 @@ fun DeviceList(
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier = modifier) {
-        items(devices) { device ->
+        items(
+            items = devices,
+            key = { it.macAddress }
+        ) { device ->
             DeviceItem(device = device, onClick = { onDeviceClick(device) })
         }
     }

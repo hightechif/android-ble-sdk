@@ -7,7 +7,6 @@ import com.edts.blesdk.core.BleConnection
 import com.edts.blesdk.core.BleManager
 import com.edts.blesdk.core.ConnectionState
 import com.edts.blesdk.model.BleDevice
-import com.edts.blesdk.util.BleExtensions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +18,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val bleManager = BleManager(application)
     private var bleConnection: BleConnection? = null
-    
+
     private var scanJob: Job? = null
     private var connectionJob: Job? = null
     private var notificationsJob: Job? = null
@@ -38,19 +37,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Clear previous results
         _scannedDevices.value = emptyList()
         scanJob?.cancel()
-        
+
         scanJob = viewModelScope.launch {
             try {
                 bleManager.scanner.scanForDevices().collect { device ->
                     log("Found: ${device.name} - ${device.macAddress}")
-                    // Add distinct devices safely
-                    _scannedDevices.update { currentList ->
-                        if (currentList.none { it.macAddress == device.macAddress }) {
-                             currentList + device
-                        } else {
-                             currentList
-                        }
-                    }
+                    _scannedDevices.update { it + device }
                 }
             } catch (e: Exception) {
                 log("Scan error: ${e.message}")
@@ -69,19 +61,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             bleConnection?.connectionState?.collect { state ->
                 log("Connection State:Async $state")
                 _isConnected.value = state == ConnectionState.CONNECTED
-                
+
                 if (state == ConnectionState.CONNECTED) {
                     log("Connected! Discovering services...")
                     val success = bleConnection?.discoverServices() ?: false
                     if (success) {
                         log("Services discovered")
                     } else {
-                         log("Service discovery failed")
+                        log("Service discovery failed")
                     }
                 }
             }
         }
-        
+
         notificationsJob?.cancel()
         notificationsJob = viewModelScope.launch {
             bleConnection?.notifications?.collect { notification ->
@@ -94,7 +86,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val currentLog = _logs.value
         _logs.value = "$currentLog$message\n"
     }
-    
+
     override fun onCleared() {
         super.onCleared()
         bleConnection?.close()

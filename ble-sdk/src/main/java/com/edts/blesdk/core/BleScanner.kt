@@ -21,17 +21,22 @@ class BleScanner(private val bluetoothAdapter: BluetoothAdapter) {
             return@callbackFlow
         }
 
+        val discoveredDeviceAddresses = mutableSetOf<String>()
+
         val scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 super.onScanResult(callbackType, result)
                 val device = result.device
-                val bleDevice = BleDevice(
-                    name = device.name ?: "Unknown",
-                    macAddress = device.address,
-                    rssi = result.rssi,
-                    device = device
-                )
-                trySend(bleDevice)
+                
+                if (discoveredDeviceAddresses.add(device.address)) {
+                    val bleDevice = BleDevice(
+                        name = device.name ?: "Unknown",
+                        macAddress = device.address,
+                        rssi = result.rssi,
+                        device = device
+                    )
+                    trySend(bleDevice)
+                }
             }
 
             override fun onScanFailed(errorCode: Int) {
