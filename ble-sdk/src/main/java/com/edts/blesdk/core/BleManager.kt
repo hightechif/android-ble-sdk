@@ -1,8 +1,8 @@
 package com.edts.blesdk.core
 
-import android.content.Context
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.content.Context
 import com.edts.blesdk.model.BleDevice
 
 class BleManager(private val context: Context) {
@@ -26,7 +26,11 @@ class BleManager(private val context: Context) {
         return bluetoothAdapter?.isEnabled == true
     }
 
-    fun connect(device: BleDevice): BleConnection {
-        return BleConnection(context, device.device)
+    fun connect(device: BleDevice): BleConnection? {
+        if (!isBluetoothEnabled()) return null
+
+        return device.device?.let {
+            BleConnection(context, it)
+        }
     }
 }
