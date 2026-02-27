@@ -31,6 +31,7 @@ enum class ConnectionState {
     DISCONNECTING
 }
 
+@SuppressLint("MissingPermission")
 class BleConnection(
     context: Context,
     private val bluetoothDevice: BluetoothDevice
@@ -57,17 +58,6 @@ class BleConnection(
                 operationLock.withLock {
                     pendingOperation = operation
                     executeOperation(operation)
-                    // The lock is released, but we need to wait for the callback to verify completion
-                    // Typically we'd wait on a signal here, but for simplicity in this pass,
-                    // we assume 'pendingOperation' logic handles the 'next' signal, or we rely on the lock being strictly around the 'start'
-                    // Actually, a better pattern is to have the callback unlock a Mutex or signal completion.
-                    // For now, let's use the blocking "execute" which will return only after callback triggers? 
-                    // No, implementation below is async.
-
-                    // 1. take item from channel (inside this loop)
-                    // 2. execute
-                    // 3. suspend until callback signals 'done'
-                    // We need a way to suspend here with a timeout to prevent deadlocks.
                     val result = withTimeoutOrNull(5000) {
                         operation.completion.await()
                     }
@@ -80,20 +70,17 @@ class BleConnection(
         }
     }
 
-    @SuppressLint("MissingPermission")
     fun connect() {
         if (_connectionState.value == ConnectionState.CONNECTING || _connectionState.value == ConnectionState.CONNECTED) return
         _connectionState.value = ConnectionState.CONNECTING
         bluetoothGatt = bluetoothDevice.connectGatt(appContext, false, gattCallback)
     }
 
-    @SuppressLint("MissingPermission")
     fun disconnect() {
         _connectionState.value = ConnectionState.DISCONNECTING
         bluetoothGatt?.disconnect()
     }
 
-    @SuppressLint("MissingPermission")
     fun close() {
         bluetoothGatt?.close()
         bluetoothGatt = null
@@ -124,11 +111,23 @@ class BleConnection(
         op.completion.await()
     }
 
+    suspend fun disableNotifications(serviceUuid: UUID, charUuid: UUID) {
+        val op = BleOperation.DisableNotifications(serviceUuid, charUuid)
+        enqueueOperation(op)
+        op.completion.await()
+    }
+
+    suspend fun readRssi(): Int? {
+        val op = BleOperation.ReadRssi
+        enqueueOperation(op)
+        val result = op.completion.await()
+        return if (result is BleResult.SuccessRssi) result.rssi else null
+    }
+
     private suspend fun enqueueOperation(operation: BleOperation) {
         operationQueue.send(operation)
     }
 
-    @SuppressLint("MissingPermission")
     private fun executeOperation(operation: BleOperation) {
         val gatt = bluetoothGatt ?: run {
             operation.completion.complete(BleResult.Error("Not connected"))
@@ -213,6 +212,42 @@ class BleConnection(
                     operation.completion.complete(BleResult.Error("Characteristic not found"))
                 }
             }
+
+            is BleOperation.DisableNotifications -> {
+                val characteristic =
+                    getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
+                if (characteristic != null) {
+                    gatt.setCharacteristicNotification(characteristic, false)
+
+                    val descriptor =
+                        characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                    if (descriptor != null) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            val result = gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
+                            if (result != BluetoothStatusCodes.SUCCESS) {
+                                operation.completion.complete(BleResult.Error("Failed to write descriptor: $result"))
+                            }
+                        } else {
+                            @Suppress("DEPRECATION")
+                            descriptor.value = BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+                            @Suppress("DEPRECATION")
+                            if (!gatt.writeDescriptor(descriptor)) {
+                                operation.completion.complete(BleResult.Error("Failed to write descriptor"))
+                            }
+                        }
+                    } else {
+                        operation.completion.complete(BleResult.Success(null))
+                    }
+                } else {
+                    operation.completion.complete(BleResult.Error("Characteristic not found"))
+                }
+            }
+
+            is BleOperation.ReadRssi -> {
+                if (!gatt.readRemoteRssi()) {
+                    operation.completion.complete(BleResult.Error("Failed to start RSSI read"))
+                }
+            }
         }
     }
 
@@ -241,6 +276,16 @@ class BleConnection(
                     pendingOperation?.completion?.complete(BleResult.Success(null))
                 } else {
                     pendingOperation?.completion?.complete(BleResult.Error("Service discovery failed: $status"))
+                }
+            }
+        }
+
+        override fun onReadRemoteRssi(gatt: BluetoothGatt, rssi: Int, status: Int) {
+            if (pendingOperation is BleOperation.ReadRssi) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    pendingOperation?.completion?.complete(BleResult.SuccessRssi(rssi))
+                } else {
+                    pendingOperation?.completion?.complete(BleResult.Error("RSSI read failed: $status"))
                 }
             }
         }
@@ -294,7 +339,7 @@ class BleConnection(
             status: Int
         ) {
             // Usually for notifications
-            if (pendingOperation is BleOperation.EnableNotifications) {
+            if (pendingOperation is BleOperation.EnableNotifications || pendingOperation is BleOperation.DisableNotifications) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(null))
                 } else {
@@ -396,6 +441,8 @@ sealed class BleOperation {
     }
 
     data class EnableNotifications(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
+    data class DisableNotifications(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
+    object ReadRssi : BleOperation()
 }
 
 sealed class BleResult {
@@ -406,13 +453,20 @@ sealed class BleResult {
 
             other as Success
 
-            return data.contentEquals(other.data)
+            if (data != null) {
+                if (other.data == null) return false
+                if (!data.contentEquals(other.data)) return false
+            } else if (other.data != null) return false
+
+            return true
         }
 
         override fun hashCode(): Int {
             return data?.contentHashCode() ?: 0
         }
     }
+
+    data class SuccessRssi(val rssi: Int) : BleResult()
 
     data class Error(val message: String) : BleResult()
 }

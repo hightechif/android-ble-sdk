@@ -11,9 +11,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import android.util.Log
 
+@SuppressLint("MissingPermission")
 class BleScanner(private val bluetoothAdapter: BluetoothAdapter) {
 
-    @SuppressLint("MissingPermission")
     fun scanForDevices(): Flow<BleDevice> = callbackFlow {
         val scanner = bluetoothAdapter.bluetoothLeScanner
         if (scanner == null) {

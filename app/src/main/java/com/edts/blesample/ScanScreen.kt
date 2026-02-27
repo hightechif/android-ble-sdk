@@ -2,6 +2,7 @@ package com.edts.blesample
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,16 +11,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.edts.blesdk.model.BleDevice
 
 @Composable
@@ -38,10 +45,14 @@ fun ScanScreen(
     isConnected: Boolean,
     logs: String,
     onScanClick: () -> Unit,
-    onConnectClick: (BleDevice) -> Unit
+    onConnectClick: (BleDevice) -> Unit,
+    onReadNotificationClick: () -> Unit,
+    onWriteMessageClick: () -> Unit,
+    onDisableNotificationClick: () -> Unit,
+    onReadRssiClick: () -> Unit
 ) {
     var filterUnknown by remember { mutableStateOf(false) }
-    
+
     val displayedDevices = if (filterUnknown) {
         scannedDevices.filter { it.name != "Unknown" }
     } else {
@@ -98,6 +109,21 @@ fun ScanScreen(
                 .weight(1f)
                 .background(Color.LightGray.copy(alpha = 0.2f))
         )
+
+        if (isConnected) {
+            Spacer(modifier = Modifier.height(16.dp))
+            ControlPanel(
+                onReadNotificationClick = onReadNotificationClick,
+                onWriteMessageClick = onWriteMessageClick,
+                onDisableNotificationClick = onDisableNotificationClick,
+                onReadRssiClick = onReadRssiClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.Black)
+                    .padding(8.dp)
+            )
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -159,6 +185,86 @@ fun DeviceItem(
                 text = "RSSI: ${device.rssi}",
                 style = MaterialTheme.typography.labelSmall
             )
+        }
+    }
+}
+
+@Composable
+fun ControlPanel(
+    modifier: Modifier = Modifier,
+    onReadNotificationClick: () -> Unit,
+    onWriteMessageClick: () -> Unit,
+    onDisableNotificationClick: () -> Unit,
+    onReadRssiClick: () -> Unit
+) {
+    Box(modifier = modifier) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Actions:",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White
+                )
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Menu,
+                    contentDescription = "Control Panel",
+                    tint = Color.White
+                )
+            }
+            Spacer(modifier = Modifier.padding(6.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.width(160.dp),
+                    onClick = onReadNotificationClick,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF005073),
+                        contentColor = Color(0xFF03A9F4)
+                    )
+                ) {
+                    Text(text = "Read Notification", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    modifier = Modifier.width(160.dp),
+                    onClick = onWriteMessageClick,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF005073),
+                        contentColor = Color(0xFF03A9F4)
+                    )
+                ) {
+                    Text(text = "Write Message", fontSize = 12.sp)
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.width(160.dp),
+                    onClick = onDisableNotificationClick,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF800020),
+                        contentColor = Color(0xFFCE2029)
+                    )
+                ) {
+                    Text(text = "Disable Notification", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    modifier = Modifier.width(160.dp),
+                    onClick = onReadRssiClick,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF005073),
+                        contentColor = Color(0xFF03A9F4)
+                    )
+                ) {
+                    Text(text = "Read RSSI", fontSize = 12.sp)
+                }
+            }
         }
     }
 }
@@ -238,10 +344,14 @@ fun ScanScreenPreview() {
         )
         ScanScreen(
             scannedDevices = mockData,
-            isConnected = false,
+            isConnected = true,
             logs = "App started\nStarting scan...\nFound: Smart Watch A\nFound: Smart Tracker B",
             onScanClick = {},
-            onConnectClick = {}
+            onConnectClick = {},
+            onReadNotificationClick = {},
+            onWriteMessageClick = {},
+            onDisableNotificationClick = {},
+            onReadRssiClick = {}
         )
     }
 }

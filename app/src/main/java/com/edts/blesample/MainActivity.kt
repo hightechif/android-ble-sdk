@@ -12,10 +12,11 @@ import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
+    private val viewModel: MainViewModel by viewModel()
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -48,7 +49,11 @@ class MainActivity : ComponentActivity() {
                 },
                 onConnectClick = { device ->
                     viewModel.connectToDevice(device)
-                }
+                },
+                onReadNotificationClick = { viewModel.readNotification() },
+                onWriteMessageClick = { viewModel.writeMessage() },
+                onDisableNotificationClick = { viewModel.disableNotification() },
+                onReadRssiClick = { viewModel.readRssi() }
             )
         }
     }

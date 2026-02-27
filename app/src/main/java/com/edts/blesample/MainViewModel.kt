@@ -13,10 +13,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 
-class MainViewModel(application: Application) : AndroidViewModel(application) {
+class MainViewModel(
+    application: Application,
+    private val bleManager: BleManager
+) : AndroidViewModel(application) {
 
-    private val bleManager = BleManager(application)
+    // Dummy UUIDs for demonstration purposes
+    private val DUMMY_SERVICE_UUID = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
+    private val DUMMY_CHAR_UUID = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
+
     private var bleConnection: BleConnection? = null
 
     private var scanJob: Job? = null
@@ -78,6 +85,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         notificationsJob = viewModelScope.launch {
             bleConnection?.notifications?.collect { notification ->
                 log("Notification: ${notification.charUuid} -> ${notification.data.joinToString()}")
+            }
+        }
+    }
+
+    fun readNotification() {
+        log("Action: Read Notification request...")
+        viewModelScope.launch {
+            try {
+                bleConnection?.enableNotifications(DUMMY_SERVICE_UUID, DUMMY_CHAR_UUID)
+                log("Action: Notifications enabled for dummy char")
+            } catch (e: Exception) {
+                log("Action failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun writeMessage() {
+        log("Action: Write Message request...")
+        viewModelScope.launch {
+            try {
+                val demoBytes = "Hello".toByteArray()
+                bleConnection?.writeCharacteristic(DUMMY_SERVICE_UUID, DUMMY_CHAR_UUID, demoBytes)
+                log("Action: Message written")
+            } catch (e: Exception) {
+                log("Action failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun disableNotification() {
+        log("Action: Disable Notification request...")
+        viewModelScope.launch {
+            try {
+                bleConnection?.disableNotifications(DUMMY_SERVICE_UUID, DUMMY_CHAR_UUID)
+                log("Action: Notifications disabled")
+            } catch (e: Exception) {
+                log("Action failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun readRssi() {
+        log("Action: Read RSSI request...")
+        viewModelScope.launch {
+            try {
+                val rssi = bleConnection?.readRssi()
+                log("Action: RSSI is $rssi dBm")
+            } catch (e: Exception) {
+                log("Action failed: ${e.localizedMessage}")
             }
         }
     }
