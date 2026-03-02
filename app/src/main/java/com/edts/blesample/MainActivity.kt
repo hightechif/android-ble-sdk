@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
@@ -23,16 +22,16 @@ class MainActivity : ComponentActivity() {
     ) { perms ->
         val allGranted = perms.values.all { it }
         if (allGranted) {
-             Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
-             viewModel.startScan()
+            Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
+            viewModel.startScan()
         } else {
-             Toast.makeText(this, "Permissions denied", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Permissions denied", Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         setContent {
             val scannedDevices by viewModel.scannedDevices.collectAsState()
             val isConnected by viewModel.isConnected.collectAsState()

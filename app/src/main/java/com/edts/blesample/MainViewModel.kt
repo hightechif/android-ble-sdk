@@ -62,6 +62,7 @@ class MainViewModel(
 
     fun connectToDevice(device: BleDevice) {
         log("Connecting to ${device.name}...")
+        scanJob?.cancel()
         bleConnection?.close()
         bleConnection = bleManager.connect(device)
         bleConnection?.connect()
