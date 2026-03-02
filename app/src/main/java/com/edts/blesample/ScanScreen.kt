@@ -114,20 +114,19 @@ fun ScanScreen(
                 .background(Color.LightGray.copy(alpha = 0.2f))
         )
 
-        if (isConnected) {
-            Spacer(modifier = Modifier.height(16.dp))
-            ControlPanel(
-                onReadNotificationClick = onReadNotificationClick,
-                onWriteMessageClick = onWriteMessageClick,
-                onDisableNotificationClick = onDisableNotificationClick,
-                onReadRssiClick = onReadRssiClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .background(Color.Black)
-                    .padding(8.dp)
-            )
-        }
+        Spacer(modifier = Modifier.height(16.dp))
+        ControlPanel(
+            isConnected = isConnected,
+            onReadNotificationClick = onReadNotificationClick,
+            onWriteMessageClick = onWriteMessageClick,
+            onDisableNotificationClick = onDisableNotificationClick,
+            onReadRssiClick = onReadRssiClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .background(Color.Black)
+                .padding(8.dp)
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -220,6 +219,7 @@ fun DeviceItem(
 @Composable
 fun ControlPanel(
     modifier: Modifier = Modifier,
+    isConnected: Boolean,
     onReadNotificationClick: () -> Unit,
     onWriteMessageClick: () -> Unit,
     onDisableNotificationClick: () -> Unit,
@@ -250,9 +250,12 @@ fun ControlPanel(
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
                     onClick = onReadNotificationClick,
+                    enabled = isConnected,
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color(0xFF005073),
-                        contentColor = Color(0xFF03A9F4)
+                        contentColor = Color(0xFF03A9F4),
+                        disabledContainerColor = Color(0xFF3A3A3A),
+                        disabledContentColor = Color(0xFF7A7A7A)
                     )
                 ) {
                     Text(text = "Read Notification", fontSize = 12.sp)
@@ -260,9 +263,12 @@ fun ControlPanel(
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
                     onClick = onWriteMessageClick,
+                    enabled = isConnected,
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color(0xFF005073),
-                        contentColor = Color(0xFF03A9F4)
+                        contentColor = Color(0xFF03A9F4),
+                        disabledContainerColor = Color(0xFF3A3A3A),
+                        disabledContentColor = Color(0xFF7A7A7A)
                     )
                 ) {
                     Text(text = "Write Message", fontSize = 12.sp)
@@ -275,9 +281,12 @@ fun ControlPanel(
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
                     onClick = onDisableNotificationClick,
+                    enabled = isConnected,
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color(0xFF800020),
-                        contentColor = Color(0xFFCE2029)
+                        contentColor = Color(0xFFCE2029),
+                        disabledContainerColor = Color(0xFF3A3A3A),
+                        disabledContentColor = Color(0xFF7A7A7A)
                     )
                 ) {
                     Text(text = "Disable Notification", fontSize = 12.sp)
@@ -285,9 +294,12 @@ fun ControlPanel(
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
                     onClick = onReadRssiClick,
+                    enabled = isConnected,
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color(0xFF005073),
-                        contentColor = Color(0xFF03A9F4)
+                        contentColor = Color(0xFF03A9F4),
+                        disabledContainerColor = Color(0xFF3A3A3A),
+                        disabledContentColor = Color(0xFF7A7A7A)
                     )
                 ) {
                     Text(text = "Read RSSI", fontSize = 12.sp)
