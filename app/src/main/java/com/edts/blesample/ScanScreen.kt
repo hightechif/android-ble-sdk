@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -208,7 +209,10 @@ fun DeviceItem(
             Button(
                 modifier = Modifier.padding(12.dp),
                 onClick = if (isCurrentDeviceConnected) onDisconnect else onConnect,
-                colors = if (isCurrentDeviceConnected) ButtonDefaults.buttonColors(containerColor = Color.Red, contentColor = Color.White) else ButtonDefaults.buttonColors()
+                colors = if (isCurrentDeviceConnected) ButtonDefaults.buttonColors(
+                    containerColor = Color.Red,
+                    contentColor = Color.White
+                ) else ButtonDefaults.buttonColors()
             ) {
                 Text(if (isCurrentDeviceConnected) "Disconnect" else "Connect")
             }
@@ -316,7 +320,12 @@ fun LogView(
 ) {
     val scrollState = rememberScrollState()
 
-    // Auto-scroll effect could be added here with LaunchedEffect
+    // Auto-scroll effect
+    LaunchedEffect(logs) {
+        if (scrollState.maxValue > 0) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
 
     Box(modifier = modifier.verticalScroll(scrollState)) {
         Text(
@@ -358,7 +367,11 @@ fun DeviceListPreview() {
             BleDevice("Smart Tracker B", "11:22:33:44:55:66", -70, null),
             BleDevice("Unknown Device", "FF:EE:DD:CC:BB:AA", -90, null)
         )
-        DeviceList(devices = mockData, connectedDevice = null, onDeviceConnect = {}, onDeviceDisconnect = {})
+        DeviceList(
+            devices = mockData,
+            connectedDevice = null,
+            onDeviceConnect = {},
+            onDeviceDisconnect = {})
     }
 }
 
