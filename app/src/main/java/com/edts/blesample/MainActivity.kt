@@ -35,18 +35,26 @@ class MainActivity : ComponentActivity() {
         setContent {
             val scannedDevices by viewModel.scannedDevices.collectAsState()
             val isConnected by viewModel.isConnected.collectAsState()
+            val isScanning by viewModel.isScanning.collectAsState()
+            val filterUnknown by viewModel.filterUnknown.collectAsState()
             val connectedDevice by viewModel.connectedDevice.collectAsState()
             val logs by viewModel.logs.collectAsState()
 
             ScanScreen(
                 scannedDevices = scannedDevices,
                 isConnected = isConnected,
+                isScanning = isScanning,
+                filterUnknown = filterUnknown,
                 connectedDevice = connectedDevice,
                 logs = logs,
+                onFilterUnknownChange = { viewModel.setFilterUnknown(it) },
                 onScanClick = {
                     if (checkPermissions()) {
                         viewModel.startScan()
                     }
+                },
+                onStopScanClick = {
+                    viewModel.stopScan()
                 },
                 onConnectClick = { device ->
                     viewModel.connectToDevice(device)
@@ -57,7 +65,8 @@ class MainActivity : ComponentActivity() {
                 onReadNotificationClick = { viewModel.readNotification() },
                 onWriteMessageClick = { viewModel.writeMessage() },
                 onDisableNotificationClick = { viewModel.disableNotification() },
-                onReadRssiClick = { viewModel.readRssi() }
+                onReadRssiClick = { viewModel.readRssi() },
+                onLoadMoreClick = { viewModel.loadMoreDevices() }
             )
         }
     }

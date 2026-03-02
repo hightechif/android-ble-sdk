@@ -39,23 +39,87 @@ class MainViewModel(
     private val _connectedDevice = MutableStateFlow<BleDevice?>(null)
     val connectedDevice: StateFlow<BleDevice?> = _connectedDevice.asStateFlow()
 
+    private val _isScanning = MutableStateFlow(false)
+    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
+
     private val _logs = MutableStateFlow("App started\n")
     val logs: StateFlow<String> = _logs.asStateFlow()
+
+    private val _filterUnknown = MutableStateFlow(false)
+    val filterUnknown: StateFlow<Boolean> = _filterUnknown.asStateFlow()
+
+    private var scanLimit = 10
+
+    private fun getDisplayedCount(): Int {
+        val list = _scannedDevices.value
+        return if (_filterUnknown.value) {
+            list.count { it.name != "Unknown" }
+        } else {
+            list.size
+        }
+    }
+
+    fun setFilterUnknown(isFiltered: Boolean) {
+        _filterUnknown.value = isFiltered
+        log("Filter unknown devices: $isFiltered")
+        if (getDisplayedCount() < scanLimit && !_isScanning.value) {
+            log("Resuming scan to fulfill display limit...")
+            startScanJob()
+        }
+    }
+
+    fun loadMoreDevices() {
+        if (getDisplayedCount() >= scanLimit && !_isScanning.value) {
+            scanLimit += 10
+            log("Resuming scan for up to $scanLimit displayed devices...")
+            startScanJob()
+        }
+    }
+
+    fun stopScan() {
+        if (_isScanning.value) {
+            log("Scan manually stopped.")
+            scanJob?.cancel()
+            _isScanning.value = false
+        }
+    }
 
     fun startScan() {
         log("Starting scan...")
         // Clear previous results
         _scannedDevices.value = emptyList()
+        scanLimit = 10 // Reset scan limit
+        startScanJob()
+    }
+
+    private fun startScanJob() {
         scanJob?.cancel()
+        _isScanning.value = true
 
         scanJob = viewModelScope.launch {
             try {
                 bleManager.scanner.scanForDevices().collect { device ->
-                    log("Found: ${device.name} - ${device.macAddress}")
-                    _scannedDevices.update { it + device }
+                    val isNewDevice =
+                        !_scannedDevices.value.any { it.macAddress == device.macAddress }
+                    if (isNewDevice) {
+                        log("Found: ${device.name} - ${device.macAddress}")
+                        _scannedDevices.update { it + device }
+                    }
+
+                    if (isNewDevice && getDisplayedCount() >= scanLimit) {
+                        log("Scan paused at $scanLimit displayed devices.")
+                        scanJob?.cancel()
+                        _isScanning.value = false
+                    }
                 }
             } catch (e: Exception) {
                 log("Scan error: ${e.message}")
+                _isScanning.value = false
+            } finally {
+                // If scan completes naturally (e.g., no more devices or timeout), set isScanning to false
+                if (_isScanning.value) { // Only if not already set to false by limit or error
+                    _isScanning.value = false
+                }
             }
         }
     }
@@ -63,6 +127,7 @@ class MainViewModel(
     fun connectToDevice(device: BleDevice) {
         log("Connecting to ${device.name}...")
         scanJob?.cancel()
+        _isScanning.value = false
         bleConnection?.close()
         bleConnection = bleManager.connect(device)
         bleConnection?.connect()
@@ -73,7 +138,7 @@ class MainViewModel(
                 log("Connection State:Async $state")
                 val connected = state == ConnectionState.CONNECTED
                 _isConnected.value = connected
-                
+
                 if (connected) {
                     _connectedDevice.value = device
                     log("Connected! Discovering services...")

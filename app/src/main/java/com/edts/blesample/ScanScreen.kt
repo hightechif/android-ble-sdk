@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.Menu
@@ -28,14 +28,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.edts.blesdk.model.BleDevice
@@ -44,18 +39,21 @@ import com.edts.blesdk.model.BleDevice
 fun ScanScreen(
     scannedDevices: List<BleDevice>,
     isConnected: Boolean,
+    isScanning: Boolean,
+    filterUnknown: Boolean,
     connectedDevice: BleDevice?,
     logs: String,
+    onFilterUnknownChange: (Boolean) -> Unit,
     onScanClick: () -> Unit,
+    onStopScanClick: () -> Unit,
     onConnectClick: (BleDevice) -> Unit,
     onDisconnectClick: () -> Unit,
     onReadNotificationClick: () -> Unit,
     onWriteMessageClick: () -> Unit,
     onDisableNotificationClick: () -> Unit,
-    onReadRssiClick: () -> Unit
+    onReadRssiClick: () -> Unit,
+    onLoadMoreClick: () -> Unit
 ) {
-    var filterUnknown by remember { mutableStateOf(false) }
-
     val displayedDevices = if (filterUnknown) {
         scannedDevices.filter { it.name != "Unknown" }
     } else {
@@ -67,12 +65,24 @@ fun ScanScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        val buttonText = when {
+            isConnected -> "Connected"
+            isScanning -> "Stop Scan"
+            else -> "Scan"
+        }
+
         Button(
-            onClick = onScanClick,
+            onClick = {
+                if (isScanning) onStopScanClick() else onScanClick()
+            },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isConnected
+            enabled = !isConnected,
+            colors = if (isScanning && !isConnected) ButtonDefaults.buttonColors(
+                containerColor = Color.Red,
+                contentColor = Color.White
+            ) else ButtonDefaults.buttonColors()
         ) {
-            Text(if (isConnected) "Connected" else "Scan")
+            Text(buttonText)
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -100,7 +110,7 @@ fun ScanScreen(
             )
             Checkbox(
                 checked = filterUnknown,
-                onCheckedChange = { filterUnknown = it }
+                onCheckedChange = onFilterUnknownChange
             )
         }
 
@@ -109,6 +119,7 @@ fun ScanScreen(
             connectedDevice = connectedDevice,
             onDeviceConnect = onConnectClick,
             onDeviceDisconnect = onDisconnectClick,
+            onLoadMore = onLoadMoreClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -153,14 +164,22 @@ fun DeviceList(
     connectedDevice: BleDevice?,
     onDeviceConnect: (BleDevice) -> Unit,
     onDeviceDisconnect: () -> Unit,
+    onLoadMore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier = modifier) {
-        items(
+        itemsIndexed(
             items = devices,
-            key = { it.macAddress }
-        ) { device ->
+            key = { _, item -> item.macAddress }
+        ) { index, device ->
             val isCurrentDeviceConnected = connectedDevice?.macAddress == device.macAddress
+
+            if (index == devices.lastIndex && devices.size >= 10) {
+                LaunchedEffect(device.macAddress) {
+                    onLoadMore()
+                }
+            }
+
             DeviceItem(
                 device = device,
                 isCurrentDeviceConnected = isCurrentDeviceConnected,
@@ -339,7 +358,7 @@ fun LogView(
 
 // --- Previews ---
 
-@Preview(showBackground = true)
+@CompletePreview
 @Composable
 fun DeviceItemPreview() {
     MaterialTheme {
@@ -358,7 +377,7 @@ fun DeviceItemPreview() {
     }
 }
 
-@Preview(showBackground = true)
+@CompletePreview
 @Composable
 fun DeviceListPreview() {
     MaterialTheme {
@@ -371,11 +390,12 @@ fun DeviceListPreview() {
             devices = mockData,
             connectedDevice = null,
             onDeviceConnect = {},
-            onDeviceDisconnect = {})
+            onDeviceDisconnect = {},
+            onLoadMore = {})
     }
 }
 
-@Preview(showBackground = true)
+@CompletePreview
 @Composable
 fun LogViewPreview() {
     MaterialTheme {
@@ -390,7 +410,7 @@ fun LogViewPreview() {
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+@CompletePreview
 @Composable
 fun ScanScreenPreview() {
     MaterialTheme {
@@ -401,15 +421,20 @@ fun ScanScreenPreview() {
         ScanScreen(
             scannedDevices = mockData,
             isConnected = true,
+            isScanning = false,
+            filterUnknown = false,
             connectedDevice = mockData[0],
             logs = "App started\nStarting scan...\nFound: Smart Watch A\nFound: Smart Tracker B",
+            onFilterUnknownChange = {},
             onScanClick = {},
+            onStopScanClick = {},
             onConnectClick = {},
             onDisconnectClick = {},
             onReadNotificationClick = {},
             onWriteMessageClick = {},
             onDisableNotificationClick = {},
-            onReadRssiClick = {}
+            onReadRssiClick = {},
+            onLoadMoreClick = {}
         )
     }
 }
