@@ -43,9 +43,11 @@ import com.edts.blesdk.model.BleDevice
 fun ScanScreen(
     scannedDevices: List<BleDevice>,
     isConnected: Boolean,
+    connectedDevice: BleDevice?,
     logs: String,
     onScanClick: () -> Unit,
     onConnectClick: (BleDevice) -> Unit,
+    onDisconnectClick: () -> Unit,
     onReadNotificationClick: () -> Unit,
     onWriteMessageClick: () -> Unit,
     onDisableNotificationClick: () -> Unit,
@@ -103,7 +105,9 @@ fun ScanScreen(
 
         DeviceList(
             devices = displayedDevices,
-            onDeviceClick = onConnectClick,
+            connectedDevice = connectedDevice,
+            onDeviceConnect = onConnectClick,
+            onDeviceDisconnect = onDisconnectClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -146,7 +150,9 @@ fun ScanScreen(
 @Composable
 fun DeviceList(
     devices: List<BleDevice>,
-    onDeviceClick: (BleDevice) -> Unit,
+    connectedDevice: BleDevice?,
+    onDeviceConnect: (BleDevice) -> Unit,
+    onDeviceDisconnect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier = modifier) {
@@ -154,7 +160,14 @@ fun DeviceList(
             items = devices,
             key = { it.macAddress }
         ) { device ->
-            DeviceItem(device = device, onClick = { onDeviceClick(device) })
+            val isCurrentDeviceConnected = connectedDevice?.macAddress == device.macAddress
+            DeviceItem(
+                device = device,
+                isCurrentDeviceConnected = isCurrentDeviceConnected,
+                onClick = { },
+                onConnect = { onDeviceConnect(device) },
+                onDisconnect = onDeviceDisconnect
+            )
         }
     }
 }
@@ -162,7 +175,10 @@ fun DeviceList(
 @Composable
 fun DeviceItem(
     device: BleDevice,
-    onClick: () -> Unit
+    isCurrentDeviceConnected: Boolean,
+    onClick: () -> Unit,
+    onConnect: () -> Unit,
+    onDisconnect: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -171,20 +187,32 @@ fun DeviceItem(
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Text(
-                text = device.name ?: "Unknown",
-                style = MaterialTheme.typography.bodyLarge
-            )
-            Text(
-                text = device.macAddress,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-            Text(
-                text = "RSSI: ${device.rssi}",
-                style = MaterialTheme.typography.labelSmall
-            )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    text = device.name ?: "Unknown",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = device.macAddress,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+                Text(
+                    text = "RSSI: ${device.rssi}",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Button(
+                modifier = Modifier.padding(12.dp),
+                onClick = if (isCurrentDeviceConnected) onDisconnect else onConnect,
+                colors = if (isCurrentDeviceConnected) ButtonDefaults.buttonColors(containerColor = Color.Red, contentColor = Color.White) else ButtonDefaults.buttonColors()
+            ) {
+                Text(if (isCurrentDeviceConnected) "Disconnect" else "Connect")
+            }
         }
     }
 }
@@ -301,7 +329,10 @@ fun DeviceItemPreview() {
                 rssi = -65,
                 device = null // Mock null BluetoothDevice to avoid context crash
             ),
-            onClick = {}
+            isCurrentDeviceConnected = false,
+            onClick = {},
+            onConnect = {},
+            onDisconnect = {}
         )
     }
 }
@@ -315,7 +346,7 @@ fun DeviceListPreview() {
             BleDevice("Smart Tracker B", "11:22:33:44:55:66", -70, null),
             BleDevice("Unknown Device", "FF:EE:DD:CC:BB:AA", -90, null)
         )
-        DeviceList(devices = mockData, onDeviceClick = {})
+        DeviceList(devices = mockData, connectedDevice = null, onDeviceConnect = {}, onDeviceDisconnect = {})
     }
 }
 
@@ -345,9 +376,11 @@ fun ScanScreenPreview() {
         ScanScreen(
             scannedDevices = mockData,
             isConnected = true,
+            connectedDevice = mockData[0],
             logs = "App started\nStarting scan...\nFound: Smart Watch A\nFound: Smart Tracker B",
             onScanClick = {},
             onConnectClick = {},
+            onDisconnectClick = {},
             onReadNotificationClick = {},
             onWriteMessageClick = {},
             onDisableNotificationClick = {},

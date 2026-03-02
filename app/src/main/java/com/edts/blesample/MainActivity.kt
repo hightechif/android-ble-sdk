@@ -36,11 +36,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             val scannedDevices by viewModel.scannedDevices.collectAsState()
             val isConnected by viewModel.isConnected.collectAsState()
+            val connectedDevice by viewModel.connectedDevice.collectAsState()
             val logs by viewModel.logs.collectAsState()
 
             ScanScreen(
                 scannedDevices = scannedDevices,
                 isConnected = isConnected,
+                connectedDevice = connectedDevice,
                 logs = logs,
                 onScanClick = {
                     if (checkPermissions()) {
@@ -49,6 +51,9 @@ class MainActivity : ComponentActivity() {
                 },
                 onConnectClick = { device ->
                     viewModel.connectToDevice(device)
+                },
+                onDisconnectClick = {
+                    viewModel.disconnect()
                 },
                 onReadNotificationClick = { viewModel.readNotification() },
                 onWriteMessageClick = { viewModel.writeMessage() },

@@ -36,6 +36,9 @@ class MainViewModel(
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
+    private val _connectedDevice = MutableStateFlow<BleDevice?>(null)
+    val connectedDevice: StateFlow<BleDevice?> = _connectedDevice.asStateFlow()
+
     private val _logs = MutableStateFlow("App started\n")
     val logs: StateFlow<String> = _logs.asStateFlow()
 
@@ -67,9 +70,11 @@ class MainViewModel(
         connectionJob = viewModelScope.launch {
             bleConnection?.connectionState?.collect { state ->
                 log("Connection State:Async $state")
-                _isConnected.value = state == ConnectionState.CONNECTED
-
-                if (state == ConnectionState.CONNECTED) {
+                val connected = state == ConnectionState.CONNECTED
+                _isConnected.value = connected
+                
+                if (connected) {
+                    _connectedDevice.value = device
                     log("Connected! Discovering services...")
                     val success = bleConnection?.discoverServices() ?: false
                     if (success) {
@@ -77,6 +82,8 @@ class MainViewModel(
                     } else {
                         log("Service discovery failed")
                     }
+                } else if (_connectedDevice.value?.macAddress == device.macAddress) {
+                    _connectedDevice.value = null
                 }
             }
         }
@@ -136,6 +143,13 @@ class MainViewModel(
                 log("Action failed: ${e.localizedMessage}")
             }
         }
+    }
+
+    fun disconnect() {
+        log("Action: Disconnect request...")
+        bleConnection?.close()
+        _isConnected.value = false
+        _connectedDevice.value = null
     }
 
     private fun log(message: String) {
