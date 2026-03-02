@@ -16,9 +16,9 @@ import org.junit.Test
 
 class BleManagerTest {
 
-    private lateinit context: Context
-    private lateinit bluetoothManager: BluetoothManager
-    private lateinit adapter: BluetoothAdapter
+    private lateinit var context: Context
+    private lateinit var bluetoothManager: BluetoothManager
+    private lateinit var adapter: BluetoothAdapter
 
     @Before
     fun setup() {

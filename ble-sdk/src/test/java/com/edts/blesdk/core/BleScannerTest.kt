@@ -7,17 +7,37 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkStatic
 import io.mockk.slot
+import io.mockk.unmockkAll
 import io.mockk.verify
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class BleScannerTest {
+
+    @Before
+    fun setup() {
+        mockkStatic(android.util.Log::class)
+        every { android.util.Log.e(any(), any()) } returns 0
+    }
+
+    @After
+    fun teardown() {
+        unmockkAll()
+    }
 
     @Test
     fun scanForDevices_scannerNotAvailable_throwsException() = runTest {
@@ -43,7 +63,13 @@ class BleScannerTest {
         val scanner = BleScanner(adapter)
 
         val callbackSlot = slot<ScanCallback>()
-        every { leScanner.startScan(any(), any(), capture(callbackSlot)) } returns Unit
+        every {
+            leScanner.startScan(
+                null,
+                any<android.bluetooth.le.ScanSettings>(),
+                capture(callbackSlot)
+            )
+        } returns Unit
 
         val results = mutableListOf<com.edts.blesdk.model.BleDevice>()
         val job = launch {
@@ -86,7 +112,7 @@ class BleScannerTest {
         assertEquals("Device2", results[1].name)
         assertEquals("66:77:88:99:AA:BB", results[1].macAddress)
         assertEquals(-60, results[1].rssi)
-        
+
         verify { leScanner.stopScan(any<ScanCallback>()) }
     }
 
@@ -99,7 +125,13 @@ class BleScannerTest {
         val scanner = BleScanner(adapter)
 
         val callbackSlot = slot<ScanCallback>()
-        every { leScanner.startScan(any(), any(), capture(callbackSlot)) } returns Unit
+        every {
+            leScanner.startScan(
+                null,
+                any<android.bluetooth.le.ScanSettings>(),
+                capture(callbackSlot)
+            )
+        } returns Unit
 
         val job = launch {
             try {
