@@ -51,8 +51,7 @@ fun ScanScreen(
     onReadNotificationClick: () -> Unit,
     onWriteMessageClick: () -> Unit,
     onDisableNotificationClick: () -> Unit,
-    onReadRssiClick: () -> Unit,
-    onLoadMoreClick: () -> Unit
+    onReadRssiClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -113,7 +112,6 @@ fun ScanScreen(
             connectedDevice = connectedDevice,
             onDeviceConnect = onConnectClick,
             onDeviceDisconnect = onDisconnectClick,
-            onLoadMore = onLoadMoreClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
@@ -158,21 +156,14 @@ fun DeviceList(
     connectedDevice: BleDevice?,
     onDeviceConnect: (BleDevice) -> Unit,
     onDeviceDisconnect: () -> Unit,
-    onLoadMore: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(modifier = modifier) {
         itemsIndexed(
             items = devices,
             key = { _, item -> item.macAddress }
-        ) { index, device ->
+        ) { _, device ->
             val isCurrentDeviceConnected = connectedDevice?.macAddress == device.macAddress
-
-            if (index == devices.lastIndex && devices.size >= 10) {
-                LaunchedEffect(device.macAddress) {
-                    onLoadMore()
-                }
-            }
 
             DeviceItem(
                 device = device,
@@ -384,8 +375,8 @@ fun DeviceListPreview() {
             devices = mockData,
             connectedDevice = null,
             onDeviceConnect = {},
-            onDeviceDisconnect = {},
-            onLoadMore = {})
+            onDeviceDisconnect = {}
+        )
     }
 }
 
@@ -427,8 +418,7 @@ fun ScanScreenPreview() {
             onReadNotificationClick = {},
             onWriteMessageClick = {},
             onDisableNotificationClick = {},
-            onReadRssiClick = {},
-            onLoadMoreClick = {}
+            onReadRssiClick = {}
         )
     }
 }

@@ -77,8 +77,7 @@ class MainActivity : ComponentActivity() {
                 onReadNotificationClick = { viewModel.readNotification() },
                 onWriteMessageClick = { viewModel.writeMessage() },
                 onDisableNotificationClick = { viewModel.disableNotification() },
-                onReadRssiClick = { viewModel.readRssi() },
-                onLoadMoreClick = { viewModel.loadMoreDevices() }
+                onReadRssiClick = { viewModel.readRssi() }
             )
         }
     }
