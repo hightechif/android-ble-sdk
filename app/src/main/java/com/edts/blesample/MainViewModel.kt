@@ -24,11 +24,16 @@ class MainViewModel(
     private val DUMMY_SERVICE_UUID = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
     private val DUMMY_CHAR_UUID = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
 
+    // Configuration flag
+    val ENABLE_LAZY_SCAN = false
+
     private var bleConnection: BleConnection? = null
 
     private var scanJob: Job? = null
     private var connectionJob: Job? = null
     private var notificationsJob: Job? = null
+
+    private val _rawDevices = MutableStateFlow<List<BleDevice>>(emptyList())
 
     private val _scannedDevices = MutableStateFlow<List<BleDevice>>(emptyList())
     val scannedDevices: StateFlow<List<BleDevice>> = _scannedDevices.asStateFlow()
@@ -50,26 +55,39 @@ class MainViewModel(
 
     private var scanLimit = 10
 
-    private fun getDisplayedCount(): Int {
-        val list = _scannedDevices.value
-        return if (_filterUnknown.value) {
-            list.count { it.name != "Unknown" }
-        } else {
-            list.size
+    fun setFilterUnknown(isFiltered: Boolean) {
+        if (_filterUnknown.value != isFiltered) {
+            _filterUnknown.value = isFiltered
+            log("Filter unknown devices: $isFiltered")
+            updateFilteredDevices()
         }
     }
 
-    fun setFilterUnknown(isFiltered: Boolean) {
-        _filterUnknown.value = isFiltered
-        log("Filter unknown devices: $isFiltered")
-        if (getDisplayedCount() < scanLimit && !_isScanning.value) {
-            log("Resuming scan to fulfill display limit...")
-            startScanJob()
+    private fun updateFilteredDevices() {
+        val filtered = if (_filterUnknown.value) {
+            _rawDevices.value.filter { it.name != "Unknown" }
+        } else {
+            _rawDevices.value
+        }
+
+        _scannedDevices.value = if (ENABLE_LAZY_SCAN) {
+            filtered.take(scanLimit)
+        } else {
+            filtered
+        }
+
+        // If we still need more devices to hit the limit and we're not scanning, we could resume,
+        // but for now we just show what we have.
+        if (ENABLE_LAZY_SCAN && _scannedDevices.value.size < scanLimit && !_isScanning.value && _rawDevices.value.isNotEmpty()) {
+            // Optional: Auto-resume scan if filtering dropped us below limit
+            // startScanJob()
         }
     }
 
     fun loadMoreDevices() {
-        if (getDisplayedCount() >= scanLimit && !_isScanning.value) {
+        if (!ENABLE_LAZY_SCAN) return
+
+        if (_scannedDevices.value.size >= scanLimit && !_isScanning.value) {
             scanLimit += 10
             log("Resuming scan for up to $scanLimit displayed devices...")
             startScanJob()
@@ -86,9 +104,9 @@ class MainViewModel(
 
     fun startScan() {
         log("Starting scan...")
-        // Clear previous results
-        _scannedDevices.value = emptyList()
-        scanLimit = 10 // Reset scan limit
+        // Do not clear previous results, just increase the limit to find more
+        scanLimit = _scannedDevices.value.size + 10
+        updateFilteredDevices()
         startScanJob()
     }
 
@@ -99,17 +117,23 @@ class MainViewModel(
         scanJob = viewModelScope.launch {
             try {
                 bleManager.scanner.scanForDevices().collect { device ->
-                    val isNewDevice =
-                        !_scannedDevices.value.any { it.macAddress == device.macAddress }
+                    val isNewDevice = !_rawDevices.value.any { it.macAddress == device.macAddress }
                     if (isNewDevice) {
-                        log("Found: ${device.name} - ${device.macAddress}")
-                        _scannedDevices.update { it + device }
-                    }
+                        _rawDevices.update { it + device }
 
-                    if (isNewDevice && getDisplayedCount() >= scanLimit) {
-                        log("Scan paused at $scanLimit displayed devices.")
-                        scanJob?.cancel()
-                        _isScanning.value = false
+                        // Check if it passes current filter
+                        val passesFilter =
+                            if (_filterUnknown.value) device.name != "Unknown" else true
+                        if (passesFilter) {
+                            log("Found: ${device.name} - ${device.macAddress}")
+                            _scannedDevices.update { it + device }
+
+                            if (ENABLE_LAZY_SCAN && _scannedDevices.value.size >= scanLimit) {
+                                log("Scan paused at $scanLimit displayed devices.")
+                                scanJob?.cancel()
+                                _isScanning.value = false
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {

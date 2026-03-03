@@ -54,12 +54,6 @@ fun ScanScreen(
     onReadRssiClick: () -> Unit,
     onLoadMoreClick: () -> Unit
 ) {
-    val displayedDevices = if (filterUnknown) {
-        scannedDevices.filter { it.name != "Unknown" }
-    } else {
-        scannedDevices
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -115,7 +109,7 @@ fun ScanScreen(
         }
 
         DeviceList(
-            devices = displayedDevices,
+            devices = scannedDevices,
             connectedDevice = connectedDevice,
             onDeviceConnect = onConnectClick,
             onDeviceDisconnect = onDisconnectClick,

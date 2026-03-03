@@ -1,6 +1,7 @@
 package com.edts.blesample
 
 import android.Manifest
+import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -50,7 +51,18 @@ class MainActivity : ComponentActivity() {
                 onFilterUnknownChange = { viewModel.setFilterUnknown(it) },
                 onScanClick = {
                     if (checkPermissions()) {
-                        viewModel.startScan()
+                        val bluetoothManager =
+                            getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+                        val bluetoothAdapter = bluetoothManager.adapter
+                        if (bluetoothAdapter?.isEnabled == true) {
+                            viewModel.startScan()
+                        } else {
+                            android.app.AlertDialog.Builder(this@MainActivity)
+                                .setTitle("Bluetooth is Off")
+                                .setMessage("Please turn on your phone's Bluetooth feature to scan for devices.")
+                                .setPositiveButton("OK", null)
+                                .show()
+                        }
                     }
                 },
                 onStopScanClick = {
