@@ -5,12 +5,11 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import com.edts.blesdk.model.BleDevice
+import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
+import io.mockk.unmockkAll
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
@@ -21,61 +20,155 @@ class BleManagerTest {
     private lateinit var adapter: BluetoothAdapter
 
     @Before
-    fun setup() {
+    fun setUp() {
         context = mockk(relaxed = true)
         bluetoothManager = mockk(relaxed = true)
         adapter = mockk(relaxed = true)
 
-        every { context.applicationContext.getSystemService(Context.BLUETOOTH_SERVICE) } returns bluetoothManager
+        every { context.applicationContext } returns context
+        every { context.getSystemService(Context.BLUETOOTH_SERVICE) } returns bluetoothManager
         every { bluetoothManager.adapter } returns adapter
     }
 
+    @After
+    fun tearDown() {
+        unmockkAll()
+    }
+
+    // ─── isBluetoothEnabled ───────────────────────────────────────────────────────
+
     @Test
-    fun isBluetoothEnabled_adapterEnabled_returnsTrue() {
+    fun `isBluetoothEnabled returns true when adapter is enabled`() {
+        // Arrange
         every { adapter.isEnabled } returns true
         val manager = BleManager(context)
-        assertTrue(manager.isBluetoothEnabled())
+
+        // Act
+        val result = manager.isBluetoothEnabled()
+
+        // Assert
+        assertThat(result).isTrue()
     }
 
     @Test
-    fun isBluetoothEnabled_adapterDisabled_returnsFalse() {
+    fun `isBluetoothEnabled returns false when adapter is disabled`() {
+        // Arrange
         every { adapter.isEnabled } returns false
         val manager = BleManager(context)
-        assertFalse(manager.isBluetoothEnabled())
+
+        // Act
+        val result = manager.isBluetoothEnabled()
+
+        // Assert
+        assertThat(result).isFalse()
     }
 
     @Test
-    fun isBluetoothEnabled_adapterNull_returnsFalse() {
+    fun `isBluetoothEnabled returns false when adapter is null`() {
+        // Arrange
         every { bluetoothManager.adapter } returns null
         val manager = BleManager(context)
-        assertFalse(manager.isBluetoothEnabled())
+
+        // Act
+        val result = manager.isBluetoothEnabled()
+
+        // Assert
+        assertThat(result).isFalse()
     }
 
+    // ─── connect ──────────────────────────────────────────────────────────────────
+
     @Test
-    fun connect_bluetoothDisabled_returnsNull() {
+    fun `connect returns null when bluetooth is disabled`() {
+        // Arrange
         every { adapter.isEnabled } returns false
         val manager = BleManager(context)
-        val device = BleDevice("Test", "00:11", -50, mockk())
-        val connection = manager.connect(device)
-        assertNull(connection)
+        val device = BleDevice("Test", "00:11:22:33:44:55", -50, mockk())
+
+        // Act
+        val result = manager.connect(device)
+
+        // Assert
+        assertThat(result).isNull()
     }
 
     @Test
-    fun connect_bluetoothEnabledWithDevice_returnsConnection() {
+    fun `connect returns BleConnection when bluetooth is enabled and device has BluetoothDevice`() {
+        // Arrange
         every { adapter.isEnabled } returns true
         val manager = BleManager(context)
         val bluetoothDevice = mockk<BluetoothDevice>(relaxed = true)
-        val device = BleDevice("Test", "00:11", -50, bluetoothDevice)
-        val connection = manager.connect(device)
-        assertNotNull(connection)
+        val device = BleDevice("Test", "00:11:22:33:44:55", -50, bluetoothDevice)
+
+        // Act
+        val result = manager.connect(device)
+
+        // Assert
+        assertThat(result).isNotNull()
     }
 
     @Test
-    fun connect_bluetoothEnabledWithoutDevice_returnsNull() {
+    fun `connect returns null when bluetooth is enabled but device has no BluetoothDevice`() {
+        // Arrange
         every { adapter.isEnabled } returns true
         val manager = BleManager(context)
-        val device = BleDevice("Test", "00:11", -50, null)
-        val connection = manager.connect(device)
-        assertNull(connection)
+        val device = BleDevice("Test", "00:11:22:33:44:55", -50, null)
+
+        // Act
+        val result = manager.connect(device)
+
+        // Assert
+        assertThat(result).isNull()
+    }
+
+    @Test
+    fun `connect returns BleConnection instance when device is valid and bluetooth enabled`() {
+        // Arrange
+        every { adapter.isEnabled } returns true
+        val manager = BleManager(context)
+        val bluetoothDevice = mockk<BluetoothDevice>(relaxed = true)
+        val device = BleDevice("MyDevice", "AA:BB:CC:DD:EE:FF", -60, bluetoothDevice)
+
+        // Act
+        val result = manager.connect(device)
+
+        // Assert
+        assertThat(result).isInstanceOf(BleConnection::class.java)
+    }
+
+    // ─── scanner ──────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `scanner returns BleScanner instance when adapter is available`() {
+        // Arrange
+        every { adapter.isEnabled } returns true
+        val manager = BleManager(context)
+
+        // Act
+        val scanner = manager.scanner
+
+        // Assert
+        assertThat(scanner).isInstanceOf(BleScanner::class.java)
+    }
+
+    @Test
+    fun `scanner throws IllegalStateException when bluetooth adapter is null`() {
+        // Arrange
+        every { bluetoothManager.adapter } returns null
+        val manager = BleManager(context)
+
+        // Act
+        var thrownException: Exception? = null
+        try {
+            @Suppress("UNUSED_EXPRESSION")
+            manager.scanner
+        } catch (e: IllegalStateException) {
+            thrownException = e
+        }
+
+        // Assert
+        assertThat(thrownException).isNotNull()
+        assertThat(thrownException).isInstanceOf(IllegalStateException::class.java)
+        assertThat(thrownException?.message).contains("Bluetooth is not supported")
     }
 }

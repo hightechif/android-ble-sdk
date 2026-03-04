@@ -88,7 +88,7 @@ class BleConnection(
     }
 
     suspend fun discoverServices(): Boolean {
-        enqueueOperation(BleOperation.DiscoverServices)
+        enqueueOperation(BleOperation.DiscoverServices())
         return true
     }
 
@@ -118,7 +118,7 @@ class BleConnection(
     }
 
     suspend fun readRssi(): Int? {
-        val op = BleOperation.ReadRssi
+        val op = BleOperation.ReadRssi()
         enqueueOperation(op)
         val result = op.completion.await()
         return if (result is BleResult.SuccessRssi) result.rssi else null
@@ -412,7 +412,7 @@ data class BleNotification(
 sealed class BleOperation {
     val completion = CompletableDeferred<BleResult>()
 
-    object DiscoverServices : BleOperation()
+    class DiscoverServices : BleOperation()
     data class ReadCharacteristic(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
     data class WriteCharacteristic(
         val serviceUuid: UUID,
@@ -442,7 +442,7 @@ sealed class BleOperation {
 
     data class EnableNotifications(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
     data class DisableNotifications(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
-    object ReadRssi : BleOperation()
+    class ReadRssi : BleOperation()
 }
 
 sealed class BleResult {

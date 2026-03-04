@@ -101,7 +101,7 @@ class BleScanner(private val bluetoothAdapter: BluetoothAdapter) {
         }
     }
 
-    private fun rawScanFlow() = callbackFlow<BleDevice> {
+    private fun rawScanFlow() = callbackFlow {
         val leScanner = bluetoothAdapter.bluetoothLeScanner
         if (leScanner == null) {
             close(IllegalStateException("Bluetooth LE Scanner not available"))
@@ -133,7 +133,7 @@ class BleScanner(private val bluetoothAdapter: BluetoothAdapter) {
 
         val settings = ScanSettings.Builder()
             .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
+            ?.build()
 
         leScanner.startScan(null, settings, callback)
         awaitClose { leScanner.stopScan(callback) }

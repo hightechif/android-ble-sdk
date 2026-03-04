@@ -6,43 +6,41 @@ import com.edts.blesdk.core.BleManager
 import com.edts.blesdk.core.BleScanner
 import com.edts.blesdk.core.ConnectionState
 import com.edts.blesdk.model.BleDevice
+import com.google.common.truth.Truth.assertThat
+import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.unmockkAll
 import io.mockk.verify
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
 
+    @get:Rule
+    val mainDispatcherRule = MainDispatcherRule()
+
     private lateinit var application: Application
     private lateinit var bleManager: BleManager
     private lateinit var bleScanner: BleScanner
     private lateinit var bleConnection: BleConnection
-    private val testDispatcher = StandardTestDispatcher()
+    private lateinit var viewModel: MainViewModel
 
     private val fakeScannedDevices = MutableStateFlow<List<BleDevice>>(emptyList())
     private val fakeIsScanning = MutableStateFlow(false)
     private val fakeFilterUnknown = MutableStateFlow(false)
 
-    private lateinit var viewModel: MainViewModel
-
     @Before
-    fun setup() {
-        Dispatchers.setMain(testDispatcher)
+    fun setUp() {
         application = mockk(relaxed = true)
         bleManager = mockk(relaxed = true)
         bleScanner = mockk(relaxed = true)
@@ -58,82 +56,534 @@ class MainViewModelTest {
 
     @After
     fun tearDown() {
-        Dispatchers.resetMain()
+        unmockkAll()
     }
 
+    // ─── startScan ────────────────────────────────────────────────────────────────
+
     @Test
-    fun `startScan delegates to bleScanner`() = runTest {
+    fun `startScan returns scan delegated when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
         viewModel.startScan()
         advanceUntilIdle()
 
+        // Assert
         verify { bleScanner.startScan(any()) }
-        assertTrue(viewModel.logs.value.contains("Starting scan"))
     }
 
     @Test
-    fun `stopScan delegates to bleScanner`() = runTest {
+    fun `startScan returns scan log appended when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
+        viewModel.startScan()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Starting scan")
+    }
+
+    // ─── stopScan ─────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `stopScan returns scan stopped when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
         viewModel.stopScan()
         advanceUntilIdle()
 
+        // Assert
         verify { bleScanner.stopScan() }
-        assertTrue(viewModel.logs.value.contains("Scan manually stopped"))
     }
 
     @Test
-    fun `setFilterUnknown delegates to bleScanner`() = runTest {
+    fun `stopScan returns stop log appended when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
+        viewModel.stopScan()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Scan manually stopped")
+    }
+
+    // ─── setFilterUnknown ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `setFilterUnknown returns filter delegated when toggled true`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
         viewModel.setFilterUnknown(true)
         advanceUntilIdle()
 
+        // Assert
         verify { bleScanner.setFilterUnknown(true) }
-        assertTrue(viewModel.logs.value.contains("Filter unknown devices: true"))
     }
 
+    @Test
+    fun `setFilterUnknown returns filter delegated when toggled false`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
 
+        // Act
+        viewModel.setFilterUnknown(false)
+        advanceUntilIdle()
+
+        // Assert
+        verify { bleScanner.setFilterUnknown(false) }
+    }
 
     @Test
-    fun `scannedDevices reflects scanner state flow`() = runTest {
+    fun `setFilterUnknown returns filter log appended when toggled`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
+        viewModel.setFilterUnknown(true)
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Filter unknown devices: true")
+    }
+
+    // ─── scannedDevices ───────────────────────────────────────────────────────────
+
+    @Test
+    fun `scannedDevices returns reflected list when scanner emits devices`() = runTest {
+        // Arrange
         val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+
+        // Act
         fakeScannedDevices.value = listOf(device)
 
-        assertEquals(1, viewModel.scannedDevices.value.size)
-        assertEquals("TestDevice", viewModel.scannedDevices.value[0].name)
+        // Assert
+        assertThat(viewModel.scannedDevices.value).hasSize(1)
+        assertThat(viewModel.scannedDevices.value[0].name).isEqualTo("TestDevice")
     }
 
     @Test
-    fun `connectToDevice updates connection state on CONNECTED`() = runTest {
+    fun `scannedDevices returns empty list when scanner emits no devices`() = runTest {
+        // Arrange — fakeScannedDevices starts empty
+
+        // Act — no emission
+
+        // Assert
+        assertThat(viewModel.scannedDevices.value).isEmpty()
+    }
+
+    @Test
+    fun `scannedDevices returns found device log appended when new device emitted`() = runTest {
+        // Arrange
+        val device = BleDevice("HeartMonitor", "AA:BB:CC:DD:EE:FF", -65, mockk())
+
+        // Act
+        fakeScannedDevices.value = listOf(device)
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Found: HeartMonitor - AA:BB:CC:DD:EE:FF")
+    }
+
+    // ─── connectToDevice ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `connectToDevice returns isConnected false when state is DISCONNECTED`() = runTest {
+        // Arrange
         val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
         every { bleManager.connect(device) } returns bleConnection
-
-        val connectionStateFlow = MutableStateFlow(ConnectionState.DISCONNECTED)
-        every { bleConnection.connectionState } returns connectionStateFlow
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.DISCONNECTED)
         every { bleConnection.notifications } returns flowOf()
 
+        // Act
         viewModel.connectToDevice(device)
         advanceUntilIdle()
 
-        assertEquals(false, viewModel.isConnected.value)
+        // Assert
+        assertThat(viewModel.isConnected.value).isFalse()
+    }
 
+    @Test
+    fun `connectToDevice returns isConnected true when state transitions to CONNECTED`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        val connectionStateFlow = MutableStateFlow(ConnectionState.DISCONNECTED)
+        every { bleConnection.connectionState } returns connectionStateFlow
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.discoverServices() } returns true
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
         connectionStateFlow.value = ConnectionState.CONNECTED
         advanceUntilIdle()
 
-        assertEquals(true, viewModel.isConnected.value)
-        assertTrue(viewModel.logs.value.contains("Connected! Discovering services..."))
-        coVerify { bleConnection.discoverServices() }
+        // Assert
+        assertThat(viewModel.isConnected.value).isTrue()
     }
 
     @Test
-    fun `readNotification logs the action request`() = runTest {
+    fun `connectToDevice returns connectedDevice set when state becomes CONNECTED`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        val connectionStateFlow = MutableStateFlow(ConnectionState.DISCONNECTED)
+        every { bleConnection.connectionState } returns connectionStateFlow
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.discoverServices() } returns true
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        connectionStateFlow.value = ConnectionState.CONNECTED
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.connectedDevice.value).isEqualTo(device)
+    }
+
+    @Test
+    fun `connectToDevice returns services discovered when connection reaches CONNECTED`() =
+        runTest {
+            // Arrange
+            val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+            every { bleManager.connect(device) } returns bleConnection
+            val connectionStateFlow = MutableStateFlow(ConnectionState.DISCONNECTED)
+            every { bleConnection.connectionState } returns connectionStateFlow
+            every { bleConnection.notifications } returns flowOf()
+            coEvery { bleConnection.discoverServices() } returns true
+            viewModel.connectToDevice(device)
+            advanceUntilIdle()
+
+            // Act
+            connectionStateFlow.value = ConnectionState.CONNECTED
+            advanceUntilIdle()
+
+            // Assert
+            coVerify { bleConnection.discoverServices() }
+            assertThat(viewModel.logs.value).contains("Connected! Discovering services...")
+        }
+
+    @Test
+    fun `connectToDevice returns isConnected false and connectedDevice null when disconnected`() =
+        runTest {
+            // Arrange
+            val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+            every { bleManager.connect(device) } returns bleConnection
+            val connectionStateFlow = MutableStateFlow(ConnectionState.DISCONNECTED)
+            every { bleConnection.connectionState } returns connectionStateFlow
+            every { bleConnection.notifications } returns flowOf()
+            coEvery { bleConnection.discoverServices() } returns true
+            viewModel.connectToDevice(device)
+            advanceUntilIdle()
+            connectionStateFlow.value = ConnectionState.CONNECTED
+            advanceUntilIdle()
+            assertThat(viewModel.isConnected.value).isTrue()
+
+            // Act
+            connectionStateFlow.value = ConnectionState.DISCONNECTED
+            advanceUntilIdle()
+
+            // Assert
+            assertThat(viewModel.isConnected.value).isFalse()
+            assertThat(viewModel.connectedDevice.value).isNull()
+        }
+
+    @Test
+    fun `connectToDevice returns connect log appended when called`() = runTest {
+        // Arrange
+        val device = BleDevice("MyWatch", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.DISCONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+
+        // Act
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Connecting to MyWatch...")
+    }
+
+    // ─── readNotification ─────────────────────────────────────────────────────────
+
+    @Test
+    fun `readNotification returns log appended when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
         viewModel.readNotification()
         advanceUntilIdle()
 
-        assertTrue(viewModel.logs.value.contains("Action: Read Notification request..."))
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Read Notification request...")
     }
 
     @Test
-    fun `writeMessage logs the action request`() = runTest {
+    fun `readNotification returns success log when enableNotifications succeeds`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.enableNotifications(any(), any()) } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.readNotification()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Notifications enabled for dummy char")
+    }
+
+    @Test
+    fun `readNotification returns error log when enableNotifications throws exception`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery {
+            bleConnection.enableNotifications(
+                any(),
+                any()
+            )
+        } throws RuntimeException("BLE error")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.readNotification()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+
+    // ─── writeMessage ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `writeMessage returns log appended when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
         viewModel.writeMessage()
         advanceUntilIdle()
 
-        assertTrue(viewModel.logs.value.contains("Action: Write Message request..."))
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Write Message request...")
+    }
+
+    @Test
+    fun `writeMessage returns success log when writeCharacteristic succeeds`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.writeCharacteristic(any(), any(), any()) } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.writeMessage()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Message written")
+    }
+
+    @Test
+    fun `writeMessage returns error log when writeCharacteristic throws exception`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery {
+            bleConnection.writeCharacteristic(
+                any(),
+                any(),
+                any()
+            )
+        } throws RuntimeException("Write failed")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.writeMessage()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+
+    // ─── disableNotification ──────────────────────────────────────────────────────
+
+    @Test
+    fun `disableNotification returns log appended when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
+        viewModel.disableNotification()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Disable Notification request...")
+    }
+
+    @Test
+    fun `disableNotification returns success log when disableNotifications succeeds`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.disableNotifications(any(), any()) } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.disableNotification()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Notifications disabled")
+    }
+
+    @Test
+    fun `disableNotification returns error log when disableNotifications throws exception`() =
+        runTest {
+            // Arrange
+            val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+            every { bleManager.connect(device) } returns bleConnection
+            every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+            every { bleConnection.notifications } returns flowOf()
+            coEvery {
+                bleConnection.disableNotifications(
+                    any(),
+                    any()
+                )
+            } throws RuntimeException("Disable failed")
+            viewModel.connectToDevice(device)
+            advanceUntilIdle()
+
+            // Act
+            viewModel.disableNotification()
+            advanceUntilIdle()
+
+            // Assert
+            assertThat(viewModel.logs.value).contains("Action failed")
+        }
+
+    // ─── readRssi ─────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `readRssi returns log appended when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
+        viewModel.readRssi()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Read RSSI request...")
+    }
+
+    @Test
+    fun `readRssi returns rssi value log when readRssi succeeds`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.readRssi() } returns -72
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.readRssi()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: RSSI is -72 dBm")
+    }
+
+    @Test
+    fun `readRssi returns error log when readRssi throws exception`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.readRssi() } throws RuntimeException("RSSI read failed")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.readRssi()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+
+    // ─── disconnect ───────────────────────────────────────────────────────────────
+
+    @Test
+    fun `disconnect returns isConnected false when called`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        val connectionStateFlow = MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.connectionState } returns connectionStateFlow
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.discoverServices() } returns true
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.disconnect()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.isConnected.value).isFalse()
+    }
+
+    @Test
+    fun `disconnect returns connectedDevice null when called`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        val connectionStateFlow = MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.connectionState } returns connectionStateFlow
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.discoverServices() } returns true
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.disconnect()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.connectedDevice.value).isNull()
+    }
+
+    @Test
+    fun `disconnect returns disconnect log appended when called`() = runTest {
+        // Arrange — ViewModel already initialized in setUp
+
+        // Act
+        viewModel.disconnect()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Disconnect request...")
     }
 }
