@@ -1,10 +1,11 @@
-package com.edts.blesample
+package com.edts.blesample.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.edts.blesdk.core.BleConnection
 import com.edts.blesdk.core.BleManager
+import com.edts.blesdk.core.BleScanner
 import com.edts.blesdk.core.ConnectionState
 import com.edts.blesdk.model.BleDevice
 import kotlinx.coroutines.Job
@@ -27,10 +28,13 @@ class MainViewModel(
     private var connectionJob: Job? = null
     private var notificationsJob: Job? = null
 
+    private val bleScanner: BleScanner
+        get() = bleManager.scanner
+
     // ─── Scanning state – delegated directly from the SDK scanner ───────────────
-    val scannedDevices: StateFlow<List<BleDevice>> = bleManager.scanner.scannedDevices
-    val isScanning: StateFlow<Boolean> = bleManager.scanner.isScanning
-    val filterUnknown: StateFlow<Boolean> = bleManager.scanner.filterUnknown
+    val scannedDevices: StateFlow<List<BleDevice>> = bleScanner.scannedDevices
+    val isScanning: StateFlow<Boolean> = bleScanner.isScanning
+    val filterUnknown: StateFlow<Boolean> = bleScanner.filterUnknown
 
     // ─── Connection state ────────────────────────────────────────────────────────
     private val _isConnected = MutableStateFlow(false)
@@ -46,7 +50,7 @@ class MainViewModel(
         viewModelScope.launch {
             // Keep track of previously logged devices to only log new ones
             var previousDevices = emptyList<BleDevice>()
-            bleManager.scanner.scannedDevices.collect { currentDevices ->
+            bleScanner.scannedDevices.collect { currentDevices ->
                 if (currentDevices.size > previousDevices.size) {
                     val newDevices = currentDevices - previousDevices.toSet()
                     newDevices.forEach { device ->
@@ -62,17 +66,17 @@ class MainViewModel(
 
     fun startScan() {
         log("Starting scan...")
-        bleManager.scanner.startScan(viewModelScope)
+        bleScanner.startScan(viewModelScope)
     }
 
     fun stopScan() {
         log("Scan manually stopped.")
-        bleManager.scanner.stopScan()
+        bleScanner.stopScan()
     }
 
     fun setFilterUnknown(filtered: Boolean) {
         log("Filter unknown devices: $filtered")
-        bleManager.scanner.setFilterUnknown(filtered)
+        bleScanner.setFilterUnknown(filtered)
     }
 
 
@@ -81,7 +85,7 @@ class MainViewModel(
 
     fun connectToDevice(device: BleDevice) {
         log("Connecting to ${device.name}...")
-        bleManager.scanner.stopScan()
+        bleScanner.stopScan()
         bleConnection?.close()
         bleConnection = bleManager.connect(device)
         bleConnection?.connect()

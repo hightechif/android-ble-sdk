@@ -1,6 +1,7 @@
-package com.edts.blesample
+package com.edts.blesample.ui
 
 import android.Manifest
+import android.app.AlertDialog
 import android.bluetooth.BluetoothManager
 import android.content.pm.PackageManager
 import android.os.Build
@@ -12,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import com.edts.blesample.ui.screen.ScanScreen
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
@@ -57,7 +59,7 @@ class MainActivity : ComponentActivity() {
                         if (bluetoothAdapter?.isEnabled == true) {
                             viewModel.startScan()
                         } else {
-                            android.app.AlertDialog.Builder(this@MainActivity)
+                            AlertDialog.Builder(this@MainActivity)
                                 .setTitle("Bluetooth is Off")
                                 .setMessage("Please turn on your phone's Bluetooth feature to scan for devices.")
                                 .setPositiveButton("OK", null)

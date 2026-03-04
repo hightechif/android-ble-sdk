@@ -1,6 +1,7 @@
 package com.edts.blesample
 
 import android.app.Application
+import com.edts.blesample.ui.MainViewModel
 import com.edts.blesdk.core.BleConnection
 import com.edts.blesdk.core.BleManager
 import com.edts.blesdk.core.BleScanner
