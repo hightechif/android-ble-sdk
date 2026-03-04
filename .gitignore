@@ -16,6 +16,7 @@
 .idea/modules.xml
 .idea/navEditor.xml
 .navigation/
+.vscode/
 
 # ============================================================
 # Build Directories and Caches
