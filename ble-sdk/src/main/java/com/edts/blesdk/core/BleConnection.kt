@@ -34,7 +34,8 @@ enum class ConnectionState {
 @SuppressLint("MissingPermission")
 class BleConnection(
     context: Context,
-    private val bluetoothDevice: BluetoothDevice
+    private val bluetoothDevice: BluetoothDevice,
+    coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
 ) {
 
     private val appContext = context.applicationContext
@@ -44,7 +45,7 @@ class BleConnection(
 
     // Operation Queue to serialize GATT operations
     private val operationQueue = Channel<BleOperation>(Channel.UNLIMITED)
-    private val scope = CoroutineScope(Dispatchers.IO)
+    private val scope = coroutineScope
     private var pendingOperation: BleOperation? = null
     private val operationLock = Mutex()
 
