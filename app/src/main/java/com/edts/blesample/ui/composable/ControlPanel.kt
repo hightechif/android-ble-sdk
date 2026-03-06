@@ -27,9 +27,10 @@ import androidx.compose.ui.unit.sp
 fun ControlPanel(
     modifier: Modifier = Modifier,
     isConnected: Boolean,
-    onReadNotificationClick: () -> Unit,
-    onWriteMessageClick: () -> Unit,
-    onDisableNotificationClick: () -> Unit,
+    onSubscribeHeartRateClick: () -> Unit,
+    onSubscribeBloodPressureClick: () -> Unit,
+    onSubscribeThermometerClick: () -> Unit,
+    onSubscribeWeightScaleClick: () -> Unit,
     onReadRssiClick: () -> Unit
 ) {
     Box(modifier = modifier) {
@@ -39,7 +40,7 @@ fun ControlPanel(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Actions:",
+                    text = "Health Actions:",
                     style = MaterialTheme.typography.titleMedium,
                     color = Color.White
                 )
@@ -56,7 +57,7 @@ fun ControlPanel(
             ) {
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
-                    onClick = onReadNotificationClick,
+                    onClick = onSubscribeHeartRateClick,
                     enabled = isConnected,
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color(0xFF005073),
@@ -65,11 +66,11 @@ fun ControlPanel(
                         disabledContentColor = Color(0xFF7A7A7A)
                     )
                 ) {
-                    Text(text = "Read Notification", fontSize = 12.sp)
+                    Text(text = "Heart Rate", fontSize = 12.sp)
                 }
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
-                    onClick = onWriteMessageClick,
+                    onClick = onSubscribeBloodPressureClick,
                     enabled = isConnected,
                     colors = ButtonDefaults.outlinedButtonColors(
                         containerColor = Color(0xFF005073),
@@ -78,7 +79,7 @@ fun ControlPanel(
                         disabledContentColor = Color(0xFF7A7A7A)
                     )
                 ) {
-                    Text(text = "Write Message", fontSize = 12.sp)
+                    Text(text = "Blood Pressure", fontSize = 12.sp)
                 }
             }
             Row(
@@ -87,17 +88,35 @@ fun ControlPanel(
             ) {
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
-                    onClick = onDisableNotificationClick,
+                    onClick = onSubscribeThermometerClick,
                     enabled = isConnected,
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color(0xFF800020),
-                        contentColor = Color(0xFFCE2029),
+                        containerColor = Color(0xFF005073),
+                        contentColor = Color(0xFF03A9F4),
                         disabledContainerColor = Color(0xFF3A3A3A),
                         disabledContentColor = Color(0xFF7A7A7A)
                     )
                 ) {
-                    Text(text = "Disable Notification", fontSize = 12.sp)
+                    Text(text = "Thermometer", fontSize = 12.sp)
                 }
+                OutlinedButton(
+                    modifier = Modifier.width(160.dp),
+                    onClick = onSubscribeWeightScaleClick,
+                    enabled = isConnected,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF005073),
+                        contentColor = Color(0xFF03A9F4),
+                        disabledContainerColor = Color(0xFF3A3A3A),
+                        disabledContentColor = Color(0xFF7A7A7A)
+                    )
+                ) {
+                    Text(text = "Weight Scale", fontSize = 12.sp)
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
                 OutlinedButton(
                     modifier = Modifier.width(160.dp),
                     onClick = onReadRssiClick,
@@ -122,9 +141,10 @@ fun ControlPanel(
 private fun ControlPanelPreview() {
     ControlPanel(
         isConnected = false,
-        onReadNotificationClick = { },
-        onWriteMessageClick = { },
-        onDisableNotificationClick = { },
+        onSubscribeHeartRateClick = { },
+        onSubscribeBloodPressureClick = { },
+        onSubscribeThermometerClick = { },
+        onSubscribeWeightScaleClick = { },
         onReadRssiClick = { },
         modifier = Modifier
             .fillMaxWidth()

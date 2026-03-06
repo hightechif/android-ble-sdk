@@ -76,9 +76,10 @@ class MainActivity : ComponentActivity() {
                 onDisconnectClick = {
                     viewModel.disconnect()
                 },
-                onReadNotificationClick = { viewModel.readNotification() },
-                onWriteMessageClick = { viewModel.writeMessage() },
-                onDisableNotificationClick = { viewModel.disableNotification() },
+                onSubscribeHeartRateClick = { viewModel.subscribeToHeartRate() },
+                onSubscribeBloodPressureClick = { viewModel.subscribeToBloodPressure() },
+                onSubscribeThermometerClick = { viewModel.subscribeToThermometer() },
+                onSubscribeWeightScaleClick = { viewModel.subscribeToWeightScale() },
                 onReadRssiClick = { viewModel.readRssi() }
             )
         }

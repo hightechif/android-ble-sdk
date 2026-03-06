@@ -80,7 +80,6 @@ class MainViewModel(
     }
 
 
-
     // ─── Connection actions ──────────────────────────────────────────────────────
 
     fun connectToDevice(device: BleDevice) {
@@ -102,6 +101,39 @@ class MainViewModel(
                     log("Connected! Discovering services...")
                     val success = bleConnection?.discoverServices() ?: false
                     log(if (success) "Services discovered" else "Service discovery failed")
+
+                    if (success) {
+                        try {
+                            log("Requesting MTU 512...")
+                            bleConnection?.requestMtu(512)
+                            log("MTU Negotiated successfully")
+                        } catch (e: Exception) {
+                            log("MTU Negotiation info: ${e.message}")
+                        }
+
+                        // Automatically read device info and battery once connected
+                        try {
+                            val manufacturer = bleConnection?.readDeviceManufacturerName()
+                            if (manufacturer != null) log("Manufacturer: $manufacturer")
+                        } catch (e: Exception) {
+                            if (e.message == "Characteristic not found") {
+                                log("Manufacturer info not supported by device")
+                            } else {
+                                log("Failed manufacturer read: ${e.message}")
+                            }
+                        }
+
+                        try {
+                            val battery = bleConnection?.readBatteryLevel()
+                            if (battery != null) log("Battery Level: $battery%")
+                        } catch (e: Exception) {
+                            if (e.message == "Characteristic not found") {
+                                log("Battery level not supported by device")
+                            } else {
+                                log("Failed battery read: ${e.message}")
+                            }
+                        }
+                    }
                 } else if (_connectedDevice.value?.macAddress == device.macAddress) {
                     _connectedDevice.value = null
                 }
@@ -111,42 +143,81 @@ class MainViewModel(
         notificationsJob?.cancel()
         notificationsJob = viewModelScope.launch {
             bleConnection?.notifications?.collect { notification ->
-                log("Notification: ${notification.charUuid} -> ${notification.data.joinToString()}")
+                when (notification.charUuid) {
+                    com.edts.blesdk.util.BleExtensions.HEART_RATE_MEASUREMENT_CHAR_UUID -> {
+                        val hr =
+                            com.edts.blesdk.util.BleExtensions.parseHeartRate(notification.data)
+                        log("Notification Heart Rate: $hr bpm")
+                    }
+
+                    com.edts.blesdk.util.BleExtensions.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID -> {
+                        val bp =
+                            com.edts.blesdk.util.BleExtensions.parseBloodPressure(notification.data)
+                        log("Notification Blood Pressure: ${bp?.systolic}/${bp?.diastolic} (MAP: ${bp?.map})")
+                    }
+
+                    com.edts.blesdk.util.BleExtensions.TEMPERATURE_MEASUREMENT_CHAR_UUID -> {
+                        val temp =
+                            com.edts.blesdk.util.BleExtensions.parseHealthThermometer(notification.data)
+                        log("Notification Temperature: ${temp?.temperature} ${if (temp?.unitIsFahrenheit == true) "F" else "C"}")
+                    }
+
+                    com.edts.blesdk.util.BleExtensions.WEIGHT_MEASUREMENT_CHAR_UUID -> {
+                        val weight =
+                            com.edts.blesdk.util.BleExtensions.parseWeightMeasurement(notification.data)
+                        log("Notification Weight: ${weight?.weight} ${if (weight?.unitIsLbs == true) "lbs" else "kg"}")
+                    }
+
+                    else -> {
+                        log("Notification: ${notification.charUuid} -> ${notification.data.joinToString()}")
+                    }
+                }
             }
         }
     }
 
-    fun readNotification() {
-        log("Action: Read Notification request...")
+    fun subscribeToHeartRate() {
+        log("Action: Enable HR notifications...")
         viewModelScope.launch {
             try {
-                bleConnection?.enableNotifications(DUMMY_SERVICE_UUID, DUMMY_CHAR_UUID)
-                log("Action: Notifications enabled for dummy char")
+                bleConnection?.subscribeToHeartRate()
+                log("Action: Subscribed to Heart Rate")
             } catch (e: Exception) {
                 log("Action failed: ${e.localizedMessage}")
             }
         }
     }
 
-    fun writeMessage() {
-        log("Action: Write Message request...")
+    fun subscribeToBloodPressure() {
+        log("Action: Enable BP notifications...")
         viewModelScope.launch {
             try {
-                val demoBytes = "Hello".toByteArray()
-                bleConnection?.writeCharacteristic(DUMMY_SERVICE_UUID, DUMMY_CHAR_UUID, demoBytes)
-                log("Action: Message written")
+                bleConnection?.subscribeToBloodPressure()
+                log("Action: Subscribed to Blood Pressure")
             } catch (e: Exception) {
                 log("Action failed: ${e.localizedMessage}")
             }
         }
     }
 
-    fun disableNotification() {
-        log("Action: Disable Notification request...")
+    fun subscribeToThermometer() {
+        log("Action: Enable Temp notifications...")
         viewModelScope.launch {
             try {
-                bleConnection?.disableNotifications(DUMMY_SERVICE_UUID, DUMMY_CHAR_UUID)
-                log("Action: Notifications disabled")
+                bleConnection?.subscribeToHealthThermometer()
+                log("Action: Subscribed to Thermometer")
+            } catch (e: Exception) {
+                log("Action failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun subscribeToWeightScale() {
+        log("Action: Enable Weight notifications...")
+        viewModelScope.launch {
+            try {
+                bleConnection?.subscribeToWeightScale()
+                log("Action: Subscribed to Weight Scale")
             } catch (e: Exception) {
                 log("Action failed: ${e.localizedMessage}")
             }

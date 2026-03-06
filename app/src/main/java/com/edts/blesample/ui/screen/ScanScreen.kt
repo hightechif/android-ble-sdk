@@ -18,11 +18,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.edts.blesample.ui.preview.DarkModePreview
-import com.edts.blesample.ui.preview.StandardPreview
 import com.edts.blesample.ui.composable.ControlPanel
 import com.edts.blesample.ui.composable.DeviceList
 import com.edts.blesample.ui.composable.LogView
+import com.edts.blesample.ui.preview.DarkModePreview
+import com.edts.blesample.ui.preview.StandardPreview
 import com.edts.blesdk.model.BleDevice
 
 @Composable
@@ -38,9 +38,10 @@ fun ScanScreen(
     onStopScanClick: () -> Unit,
     onConnectClick: (BleDevice) -> Unit,
     onDisconnectClick: () -> Unit,
-    onReadNotificationClick: () -> Unit,
-    onWriteMessageClick: () -> Unit,
-    onDisableNotificationClick: () -> Unit,
+    onSubscribeHeartRateClick: () -> Unit,
+    onSubscribeBloodPressureClick: () -> Unit,
+    onSubscribeThermometerClick: () -> Unit,
+    onSubscribeWeightScaleClick: () -> Unit,
     onReadRssiClick: () -> Unit
 ) {
     Column(
@@ -111,13 +112,13 @@ fun ScanScreen(
         Spacer(modifier = Modifier.height(16.dp))
         ControlPanel(
             isConnected = isConnected,
-            onReadNotificationClick = onReadNotificationClick,
-            onWriteMessageClick = onWriteMessageClick,
-            onDisableNotificationClick = onDisableNotificationClick,
+            onSubscribeHeartRateClick = onSubscribeHeartRateClick,
+            onSubscribeBloodPressureClick = onSubscribeBloodPressureClick,
+            onSubscribeThermometerClick = onSubscribeThermometerClick,
+            onSubscribeWeightScaleClick = onSubscribeWeightScaleClick,
             onReadRssiClick = onReadRssiClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
                 .background(Color.Black)
                 .padding(8.dp)
         )
@@ -163,9 +164,10 @@ fun ScanScreenPreview() {
             onStopScanClick = {},
             onConnectClick = {},
             onDisconnectClick = {},
-            onReadNotificationClick = {},
-            onWriteMessageClick = {},
-            onDisableNotificationClick = {},
+            onSubscribeHeartRateClick = {},
+            onSubscribeBloodPressureClick = {},
+            onSubscribeThermometerClick = {},
+            onSubscribeWeightScaleClick = {},
             onReadRssiClick = {}
         )
     }

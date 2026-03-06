@@ -59,7 +59,7 @@ class BleConnection(
                 operationLock.withLock {
                     pendingOperation = operation
                     executeOperation(operation)
-                    val result = withTimeoutOrNull(5000) {
+                    val result = withTimeoutOrNull(30000) {
                         operation.completion.await()
                     }
                     if (result == null) {
@@ -93,36 +93,94 @@ class BleConnection(
         return true
     }
 
+    suspend fun requestMtu(mtu: Int) {
+        val op = BleOperation.RequestMtu(mtu)
+        enqueueOperation(op)
+        val result = op.completion.await()
+        if (result is BleResult.Error) throw Exception(result.message)
+    }
+
     suspend fun readCharacteristic(serviceUuid: UUID, charUuid: UUID): ByteArray? {
         val op = BleOperation.ReadCharacteristic(serviceUuid, charUuid)
         enqueueOperation(op)
-        // Wait for result from the operation
-        return (op.completion.await() as? BleResult.Success)?.data
+        val result = op.completion.await()
+        if (result is BleResult.Error) throw Exception(result.message)
+        return (result as? BleResult.Success)?.data
     }
 
     suspend fun writeCharacteristic(serviceUuid: UUID, charUuid: UUID, value: ByteArray) {
         val op = BleOperation.WriteCharacteristic(serviceUuid, charUuid, value)
         enqueueOperation(op)
-        op.completion.await()
+        val result = op.completion.await()
+        if (result is BleResult.Error) throw Exception(result.message)
     }
 
     suspend fun enableNotifications(serviceUuid: UUID, charUuid: UUID) {
         val op = BleOperation.EnableNotifications(serviceUuid, charUuid)
         enqueueOperation(op)
-        op.completion.await()
+        val result = op.completion.await()
+        if (result is BleResult.Error) throw Exception(result.message)
     }
 
     suspend fun disableNotifications(serviceUuid: UUID, charUuid: UUID) {
         val op = BleOperation.DisableNotifications(serviceUuid, charUuid)
         enqueueOperation(op)
-        op.completion.await()
+        val result = op.completion.await()
+        if (result is BleResult.Error) throw Exception(result.message)
     }
 
     suspend fun readRssi(): Int? {
         val op = BleOperation.ReadRssi()
         enqueueOperation(op)
         val result = op.completion.await()
+        if (result is BleResult.Error) throw Exception(result.message)
         return if (result is BleResult.SuccessRssi) result.rssi else null
+    }
+
+    // --- Standard SIG High-Level Helpers ---
+
+    suspend fun readBatteryLevel(): Int? {
+        val data = readCharacteristic(
+            com.edts.blesdk.util.BleExtensions.BATTERY_SERVICE_UUID,
+            com.edts.blesdk.util.BleExtensions.BATTERY_LEVEL_CHAR_UUID
+        ) ?: return null
+        return com.edts.blesdk.util.BleExtensions.parseBatteryLevel(data)
+    }
+
+    suspend fun readDeviceManufacturerName(): String? {
+        val data = readCharacteristic(
+            com.edts.blesdk.util.BleExtensions.DEVICE_INFORMATION_SERVICE_UUID,
+            com.edts.blesdk.util.BleExtensions.MANUFACTURER_NAME_STRING_CHAR_UUID
+        ) ?: return null
+        return com.edts.blesdk.util.BleExtensions.parseString(data)
+    }
+
+    suspend fun subscribeToHeartRate() {
+        enableNotifications(
+            com.edts.blesdk.util.BleExtensions.HEART_RATE_SERVICE_UUID,
+            com.edts.blesdk.util.BleExtensions.HEART_RATE_MEASUREMENT_CHAR_UUID
+        )
+    }
+
+    suspend fun subscribeToBloodPressure() {
+        enableNotifications(
+            com.edts.blesdk.util.BleExtensions.BLOOD_PRESSURE_SERVICE_UUID,
+            com.edts.blesdk.util.BleExtensions.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID
+        )
+    }
+
+    suspend fun subscribeToHealthThermometer() {
+        enableNotifications(
+            com.edts.blesdk.util.BleExtensions.HEALTH_THERMOMETER_SERVICE_UUID,
+            com.edts.blesdk.util.BleExtensions.TEMPERATURE_MEASUREMENT_CHAR_UUID
+        )
+    }
+
+    suspend fun subscribeToWeightScale() {
+        enableNotifications(
+            com.edts.blesdk.util.BleExtensions.WEIGHT_SCALE_SERVICE_UUID,
+            com.edts.blesdk.util.BleExtensions.WEIGHT_MEASUREMENT_CHAR_UUID
+        )
     }
 
     private suspend fun enqueueOperation(operation: BleOperation) {
@@ -135,120 +193,152 @@ class BleConnection(
             return
         }
 
-        when (operation) {
-            is BleOperation.DiscoverServices -> {
-                if (!gatt.discoverServices()) {
-                    operation.completion.complete(BleResult.Error("Failed to start service discovery"))
-                }
-            }
-
-            is BleOperation.ReadCharacteristic -> {
-                val characteristic =
-                    getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
-                if (characteristic != null) {
-                    if (!gatt.readCharacteristic(characteristic)) {
-                        operation.completion.complete(BleResult.Error("Failed to start read"))
+        try {
+            when (operation) {
+                is BleOperation.DiscoverServices -> {
+                    if (!gatt.discoverServices()) {
+                        operation.completion.complete(BleResult.Error("Failed to start service discovery"))
                     }
-                } else {
-                    operation.completion.complete(BleResult.Error("Characteristic not found"))
                 }
-            }
 
-            is BleOperation.WriteCharacteristic -> {
-                val characteristic =
-                    getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
-                if (characteristic != null) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val result = gatt.writeCharacteristic(
-                            characteristic,
-                            operation.value,
-                            BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                        )
-                        if (result != BluetoothStatusCodes.SUCCESS) {
-                            operation.completion.complete(BleResult.Error("Failed to start write: $result"))
+                is BleOperation.RequestMtu -> {
+                    if (!gatt.requestMtu(operation.mtu)) {
+                        operation.completion.complete(BleResult.Error("Failed to request MTU"))
+                    }
+                }
+
+                is BleOperation.ReadCharacteristic -> {
+                    val characteristic =
+                        getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
+                    if (characteristic != null) {
+                        if (!gatt.readCharacteristic(characteristic)) {
+                            operation.completion.complete(BleResult.Error("Failed to start read"))
                         }
                     } else {
-                        @Suppress("DEPRECATION")
-                        characteristic.value = operation.value
-                        characteristic.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                        @Suppress("DEPRECATION")
-                        if (!gatt.writeCharacteristic(characteristic)) {
-                            operation.completion.complete(BleResult.Error("Failed to start write"))
-                        }
+                        operation.completion.complete(BleResult.Error("Characteristic not found"))
                     }
-                } else {
-                    operation.completion.complete(BleResult.Error("Characteristic not found"))
                 }
-            }
 
-            is BleOperation.EnableNotifications -> {
-                val characteristic =
-                    getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
-                if (characteristic != null) {
-                    gatt.setCharacteristicNotification(characteristic, true)
+                is BleOperation.WriteCharacteristic -> {
+                    // Wait if the device is currently bonding
+                    while (gatt.device.bondState == BluetoothDevice.BOND_BONDING) {
+                        Thread.sleep(100)
+                    }
 
-                    // We also need to write to the descriptor to actually enable it on the device
-                    val descriptor =
-                        characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
-                    if (descriptor != null) {
+                    val characteristic =
+                        getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
+                    if (characteristic != null) {
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            val result = gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                            val result = gatt.writeCharacteristic(
+                                characteristic,
+                                operation.value,
+                                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                            )
                             if (result != BluetoothStatusCodes.SUCCESS) {
-                                operation.completion.complete(BleResult.Error("Failed to write descriptor: $result"))
+                                operation.completion.complete(BleResult.Error("Failed to start write: $result"))
                             }
                         } else {
                             @Suppress("DEPRECATION")
-                            descriptor.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                            characteristic.value = operation.value
+                            characteristic.writeType =
+                                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                             @Suppress("DEPRECATION")
-                            if (!gatt.writeDescriptor(descriptor)) {
-                                operation.completion.complete(BleResult.Error("Failed to write descriptor"))
+                            if (!gatt.writeCharacteristic(characteristic)) {
+                                operation.completion.complete(BleResult.Error("Failed to start write"))
                             }
                         }
                     } else {
-                        // Some devices don't need descriptor, or it's missing. Signal success or error?
-                        // Signal success for local enable
-                        operation.completion.complete(BleResult.Success(null))
+                        operation.completion.complete(BleResult.Error("Characteristic not found"))
                     }
-                } else {
-                    operation.completion.complete(BleResult.Error("Characteristic not found"))
                 }
-            }
 
-            is BleOperation.DisableNotifications -> {
-                val characteristic =
-                    getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
-                if (characteristic != null) {
-                    gatt.setCharacteristicNotification(characteristic, false)
+                is BleOperation.EnableNotifications -> {
+                    // Wait if the device is currently bonding
+                    while (gatt.device.bondState == BluetoothDevice.BOND_BONDING) {
+                        Thread.sleep(100)
+                    }
 
-                    val descriptor =
-                        characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
-                    if (descriptor != null) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            val result = gatt.writeDescriptor(descriptor, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE)
-                            if (result != BluetoothStatusCodes.SUCCESS) {
-                                operation.completion.complete(BleResult.Error("Failed to write descriptor: $result"))
+                    val characteristic =
+                        getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
+                    if (characteristic != null) {
+                        gatt.setCharacteristicNotification(characteristic, true)
+
+                        val descriptor =
+                            characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                        if (descriptor != null) {
+                            val descriptorValue =
+                                if ((characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
+                                    BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                                } else {
+                                    BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
+                                }
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                val result = gatt.writeDescriptor(descriptor, descriptorValue)
+                                if (result != BluetoothStatusCodes.SUCCESS) {
+                                    operation.completion.complete(BleResult.Error("Failed to write descriptor: $result"))
+                                }
+                            } else {
+                                @Suppress("DEPRECATION")
+                                descriptor.value = descriptorValue
+                                @Suppress("DEPRECATION")
+                                if (!gatt.writeDescriptor(descriptor)) {
+                                    operation.completion.complete(BleResult.Error("Failed to write descriptor"))
+                                }
                             }
                         } else {
-                            @Suppress("DEPRECATION")
-                            descriptor.value = BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
-                            @Suppress("DEPRECATION")
-                            if (!gatt.writeDescriptor(descriptor)) {
-                                operation.completion.complete(BleResult.Error("Failed to write descriptor"))
-                            }
+                            operation.completion.complete(BleResult.Success(null))
                         }
                     } else {
-                        operation.completion.complete(BleResult.Success(null))
+                        operation.completion.complete(BleResult.Error("Characteristic not found"))
                     }
-                } else {
-                    operation.completion.complete(BleResult.Error("Characteristic not found"))
                 }
-            }
 
-            is BleOperation.ReadRssi -> {
-                if (!gatt.readRemoteRssi()) {
-                    operation.completion.complete(BleResult.Error("Failed to start RSSI read"))
+                is BleOperation.DisableNotifications -> {
+                    val characteristic =
+                        getCharacteristic(gatt, operation.serviceUuid, operation.charUuid)
+                    if (characteristic != null) {
+                        gatt.setCharacteristicNotification(characteristic, false)
+
+                        val descriptor =
+                            characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                        if (descriptor != null) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                val result = gatt.writeDescriptor(
+                                    descriptor,
+                                    BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+                                )
+                                if (result != BluetoothStatusCodes.SUCCESS) {
+                                    operation.completion.complete(BleResult.Error("Failed to write descriptor: $result"))
+                                }
+                            } else {
+                                @Suppress("DEPRECATION")
+                                descriptor.value =
+                                    BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
+                                @Suppress("DEPRECATION")
+                                if (!gatt.writeDescriptor(descriptor)) {
+                                    operation.completion.complete(BleResult.Error("Failed to write descriptor"))
+                                }
+                            }
+                        } else {
+                            operation.completion.complete(BleResult.Success(null))
+                        }
+                    } else {
+                        operation.completion.complete(BleResult.Error("Characteristic not found"))
+                    }
+                }
+
+                is BleOperation.ReadRssi -> {
+                    if (!gatt.readRemoteRssi()) {
+                        operation.completion.complete(BleResult.Error("Failed to start RSSI read"))
+                    }
                 }
             }
+        } catch (e: SecurityException) {
+            operation.completion.complete(BleResult.Error("SecurityException: Missing BLE permissions"))
+            operation.completion.complete(BleResult.Error("Error: ${e.message}"))
+        } catch (e: Exception) {
+            operation.completion.complete(BleResult.Error("Exception during GATT operation: ${e.message}"))
         }
     }
 
@@ -291,6 +381,16 @@ class BleConnection(
             }
         }
 
+        override fun onMtuChanged(gatt: BluetoothGatt?, mtu: Int, status: Int) {
+            if (pendingOperation is BleOperation.RequestMtu) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    pendingOperation?.completion?.complete(BleResult.Success(null))
+                } else {
+                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("MTU request failed", status)))
+                }
+            }
+        }
+
         @Deprecated("Deprecated in Java")
         override fun onCharacteristicRead(
             gatt: BluetoothGatt,
@@ -315,7 +415,7 @@ class BleConnection(
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(value))
                 } else {
-                    pendingOperation?.completion?.complete(BleResult.Error("Read failed: $status"))
+                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("Read failed", status)))
                 }
             }
         }
@@ -329,7 +429,7 @@ class BleConnection(
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(null))
                 } else {
-                    pendingOperation?.completion?.complete(BleResult.Error("Write failed: $status"))
+                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("Write failed", status)))
                 }
             }
         }
@@ -339,12 +439,11 @@ class BleConnection(
             descriptor: BluetoothGattDescriptor,
             status: Int
         ) {
-            // Usually for notifications
             if (pendingOperation is BleOperation.EnableNotifications || pendingOperation is BleOperation.DisableNotifications) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(null))
                 } else {
-                    pendingOperation?.completion?.complete(BleResult.Error("Descriptor write failed: $status"))
+                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("Descriptor write failed", status)))
                 }
             }
         }
@@ -380,6 +479,18 @@ class BleConnection(
             )
             _notifications.trySend(notification)
         }
+
+        private fun getGattErrorMessage(baseMessage: String, status: Int): String {
+            return when (status) {
+                BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION,
+                BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION,
+                BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION,
+                8 -> "$baseMessage: Secure Bonding Required (Status $status)"
+                133 -> "$baseMessage: Connection/GATT Error 133 (Device may require pairing or restarted)"
+                BluetoothGatt.GATT_CONNECTION_CONGESTED -> "$baseMessage: Connection Congested"
+                else -> "$baseMessage: Status $status"
+            }
+        }
     }
 }
 
@@ -414,6 +525,7 @@ sealed class BleOperation {
     val completion = CompletableDeferred<BleResult>()
 
     class DiscoverServices : BleOperation()
+    data class RequestMtu(val mtu: Int) : BleOperation()
     data class ReadCharacteristic(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
     data class WriteCharacteristic(
         val serviceUuid: UUID,
