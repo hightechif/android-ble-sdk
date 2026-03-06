@@ -484,8 +484,7 @@ class BleConnection(
             return when (status) {
                 BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION,
                 BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION,
-                BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION,
-                8 -> "$baseMessage: Secure Bonding Required (Status $status)"
+                BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION -> "$baseMessage: Secure Bonding Required (Status $status)"
                 133 -> "$baseMessage: Connection/GATT Error 133 (Device may require pairing or restarted)"
                 BluetoothGatt.GATT_CONNECTION_CONGESTED -> "$baseMessage: Connection Congested"
                 else -> "$baseMessage: Status $status"
