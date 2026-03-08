@@ -5,12 +5,13 @@ plugins {
 
 android {
     namespace = "com.sunstrinq.blesample"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.sunstrinq.blesample"
         minSdk = 26
-        targetSdk = 34
+        //noinspection OldTargetApi
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
