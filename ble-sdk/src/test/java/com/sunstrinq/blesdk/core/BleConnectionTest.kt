@@ -1,9 +1,16 @@
 package com.sunstrinq.blesdk.core
 
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
+import android.bluetooth.BluetoothGattService
+import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
-import com.sunstrinq.blesdk.model.ConnectionState
 import com.google.common.truth.Truth.assertThat
+import com.sunstrinq.blesdk.constant.BleConstants
+import com.sunstrinq.blesdk.model.ConnectionState
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.unmockkAll
@@ -23,7 +30,7 @@ class BleConnectionTest {
 
     private lateinit var context: Context
     private lateinit var device: BluetoothDevice
-    private lateinit var gatt: android.bluetooth.BluetoothGatt
+    private lateinit var gatt: BluetoothGatt
 
     private val serviceUuid = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
     private val charUuid = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
@@ -100,8 +107,8 @@ class BleConnectionTest {
         // Act
         callback.onConnectionStateChange(
             gatt,
-            android.bluetooth.BluetoothGatt.GATT_SUCCESS,
-            android.bluetooth.BluetoothProfile.STATE_CONNECTED
+            BluetoothGatt.GATT_SUCCESS,
+            BluetoothProfile.STATE_CONNECTED
         )
 
         // Assert
@@ -145,15 +152,15 @@ class BleConnectionTest {
             connection.connect()
             callback.onConnectionStateChange(
                 gatt,
-                android.bluetooth.BluetoothGatt.GATT_SUCCESS,
-                android.bluetooth.BluetoothProfile.STATE_CONNECTED
+                BluetoothGatt.GATT_SUCCESS,
+                BluetoothProfile.STATE_CONNECTED
             )
 
             // Act
             callback.onConnectionStateChange(
                 gatt,
-                android.bluetooth.BluetoothGatt.GATT_SUCCESS,
-                android.bluetooth.BluetoothProfile.STATE_DISCONNECTED
+                BluetoothGatt.GATT_SUCCESS,
+                BluetoothProfile.STATE_DISCONNECTED
             )
 
             // Assert
@@ -173,7 +180,7 @@ class BleConnectionTest {
         // Act: fire callback AFTER enqueuing — with UnconfinedTestDispatcher the queue
         // consumer runs synchronously so pendingOperation is already set when we launch.
         launch {
-            callback.onServicesDiscovered(gatt, android.bluetooth.BluetoothGatt.GATT_SUCCESS)
+            callback.onServicesDiscovered(gatt, BluetoothGatt.GATT_SUCCESS)
         }
         val result = connection.discoverServices()
 
@@ -184,36 +191,38 @@ class BleConnectionTest {
     // ─── disableNotifications ─────────────────────────────────────────────────────
 
     @Test
-    fun `disableNotifications writes CCCD descriptor correctly when characteristic has NOTIFY`() = runTest {
-        // Arrange
-        val connection = buildConnection()
-        val callback = getGattCallback(connection)
-        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
-        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
-        val descriptor = mockk<android.bluetooth.BluetoothGattDescriptor>(relaxed = true)
+    fun `disableNotifications writes CCCD descriptor correctly when characteristic has NOTIFY`() =
+        runTest {
+            // Arrange
+            val connection = buildConnection()
+            val callback = getGattCallback(connection)
+            val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+            val service = mockk<BluetoothGattService>(relaxed = true)
+            val descriptor = mockk<BluetoothGattDescriptor>(relaxed = true)
 
-        connection.connect()
-        every { gatt.getService(serviceUuid) } returns service
-        every { service.getCharacteristic(charUuid) } returns characteristic
-        every { characteristic.getDescriptor(UUID.fromString(com.sunstrinq.blesdk.constant.BleConstants.CCCD_UUID)) } returns descriptor
-        every { gatt.setCharacteristicNotification(characteristic, false) } returns true
-        every { gatt.writeDescriptor(descriptor, any()) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
-        @Suppress("DEPRECATION")
-        every { gatt.writeDescriptor(descriptor) } returns true
-        every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
+            connection.connect()
+            every { gatt.getService(serviceUuid) } returns service
+            every { service.getCharacteristic(charUuid) } returns characteristic
+            every { characteristic.getDescriptor(UUID.fromString(BleConstants.CCCD_UUID)) } returns descriptor
+            every { gatt.setCharacteristicNotification(characteristic, false) } returns true
+            every {
+                gatt.writeDescriptor(
+                    descriptor,
+                    any()
+                )
+            } returns BluetoothStatusCodes.SUCCESS
+            @Suppress("DEPRECATION")
+            every { gatt.writeDescriptor(descriptor) } returns true
+            every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
 
-        // Act
-        launch {
-            callback.onDescriptorWrite(
-                gatt,
-                descriptor,
-                android.bluetooth.BluetoothGatt.GATT_SUCCESS
-            )
+            // Act
+            launch {
+                callback.onDescriptorWrite(gatt, descriptor, BluetoothGatt.GATT_SUCCESS)
+            }
+            connection.disableNotifications(serviceUuid, charUuid)
+
+            // Assert - No exception means success
         }
-        connection.disableNotifications(serviceUuid, charUuid)
-
-        // Assert - No exception means success
-    }
 
     // ─── writeCharacteristic ──────────────────────────────────────────────────────
 
@@ -222,15 +231,21 @@ class BleConnectionTest {
         // Arrange
         val connection = buildConnection()
         val callback = getGattCallback(connection)
-        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
-        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
         val dataToWrite = byteArrayOf(0x01)
 
         connection.connect()
         every { gatt.getService(serviceUuid) } returns service
         every { service.getCharacteristic(charUuid) } returns characteristic
         every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
-        every { gatt.writeCharacteristic(characteristic, dataToWrite, android.bluetooth.BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
+        every {
+            gatt.writeCharacteristic(
+                characteristic,
+                dataToWrite,
+                BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+            )
+        } returns BluetoothStatusCodes.SUCCESS
         @Suppress("DEPRECATION")
         every { gatt.writeCharacteristic(characteristic) } returns true
 
@@ -239,7 +254,7 @@ class BleConnectionTest {
             callback.onCharacteristicWrite(
                 gatt,
                 characteristic,
-                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+                BluetoothGatt.GATT_SUCCESS
             )
         }
         connection.writeCharacteristic(serviceUuid, charUuid, dataToWrite)
@@ -261,7 +276,7 @@ class BleConnectionTest {
         // so pendingOperation is set immediately when readRssi() enqueues the op.
         // We launch the callback FIRST so it fires once the coroutine suspends on await().
         launch {
-            callback.onReadRemoteRssi(gatt, -65, android.bluetooth.BluetoothGatt.GATT_SUCCESS)
+            callback.onReadRemoteRssi(gatt, -65, BluetoothGatt.GATT_SUCCESS)
         }
         val result = connection.readRssi()
 
@@ -279,9 +294,9 @@ class BleConnectionTest {
 
         // Act
         launch {
-            callback.onReadRemoteRssi(gatt, 0, android.bluetooth.BluetoothGatt.GATT_FAILURE)
+            callback.onReadRemoteRssi(gatt, 0, BluetoothGatt.GATT_FAILURE)
         }
-        
+
         var exception: Exception? = null
         try {
             connection.readRssi()
@@ -301,8 +316,8 @@ class BleConnectionTest {
         // Arrange
         val connection = buildConnection()
         val callback = getGattCallback(connection)
-        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
-        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
 
         every { characteristic.service } returns service
         every { service.uuid } returns serviceUuid
@@ -328,13 +343,13 @@ class BleConnectionTest {
         // Arrange
         val connection = buildConnection()
         val callback = getGattCallback(connection)
-        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
-        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
 
         connection.connect()
         // Mock gatt to return the characteristic properly
-        every { gatt.getService(com.sunstrinq.blesdk.constant.BleConstants.DEVICE_INFORMATION_SERVICE_UUID) } returns service
-        every { service.getCharacteristic(com.sunstrinq.blesdk.constant.BleConstants.MANUFACTURER_NAME_STRING_CHAR_UUID) } returns characteristic
+        every { gatt.getService(BleConstants.DEVICE_INFORMATION_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(BleConstants.MANUFACTURER_NAME_STRING_CHAR_UUID) } returns characteristic
         every { gatt.readCharacteristic(characteristic) } returns true
 
         val manufacturerName = "TestManufacturer"
@@ -346,7 +361,7 @@ class BleConnectionTest {
                 gatt,
                 characteristic,
                 manufacturerData,
-                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+                BluetoothGatt.GATT_SUCCESS
             )
         }
         val result = connection.readDeviceManufacturerName()
@@ -360,18 +375,18 @@ class BleConnectionTest {
         // Arrange
         val connection = buildConnection()
         val callback = getGattCallback(connection)
-        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
-        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
-        val descriptor = mockk<android.bluetooth.BluetoothGattDescriptor>(relaxed = true)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
+        val descriptor = mockk<BluetoothGattDescriptor>(relaxed = true)
 
         connection.connect()
-        every { gatt.getService(com.sunstrinq.blesdk.constant.BleConstants.HEART_RATE_SERVICE_UUID) } returns service
-        every { service.getCharacteristic(com.sunstrinq.blesdk.constant.BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID) } returns characteristic
-        every { characteristic.getDescriptor(UUID.fromString(com.sunstrinq.blesdk.constant.BleConstants.CCCD_UUID)) } returns descriptor
+        every { gatt.getService(BleConstants.HEART_RATE_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID) } returns characteristic
+        every { characteristic.getDescriptor(UUID.fromString(BleConstants.CCCD_UUID)) } returns descriptor
         // Setting NOTIFY property
-        every { characteristic.properties } returns android.bluetooth.BluetoothGattCharacteristic.PROPERTY_NOTIFY
+        every { characteristic.properties } returns BluetoothGattCharacteristic.PROPERTY_NOTIFY
         every { gatt.setCharacteristicNotification(characteristic, true) } returns true
-        every { gatt.writeDescriptor(descriptor, any()) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
+        every { gatt.writeDescriptor(descriptor, any()) } returns BluetoothStatusCodes.SUCCESS
         @Suppress("DEPRECATION")
         every { gatt.writeDescriptor(descriptor) } returns true
         every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
@@ -381,7 +396,7 @@ class BleConnectionTest {
             callback.onDescriptorWrite(
                 gatt,
                 descriptor,
-                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+                BluetoothGatt.GATT_SUCCESS
             )
         }
         connection.subscribeToHeartRate()
@@ -394,17 +409,17 @@ class BleConnectionTest {
         // Arrange
         val connection = buildConnection()
         val callback = getGattCallback(connection)
-        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
-        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
-        val descriptor = mockk<android.bluetooth.BluetoothGattDescriptor>(relaxed = true)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
+        val descriptor = mockk<BluetoothGattDescriptor>(relaxed = true)
 
         connection.connect()
-        every { gatt.getService(com.sunstrinq.blesdk.constant.BleConstants.BLOOD_PRESSURE_SERVICE_UUID) } returns service
-        every { service.getCharacteristic(com.sunstrinq.blesdk.constant.BleConstants.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID) } returns characteristic
-        every { characteristic.getDescriptor(UUID.fromString(com.sunstrinq.blesdk.constant.BleConstants.CCCD_UUID)) } returns descriptor
-        every { characteristic.properties } returns android.bluetooth.BluetoothGattCharacteristic.PROPERTY_INDICATE
+        every { gatt.getService(BleConstants.BLOOD_PRESSURE_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(BleConstants.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID) } returns characteristic
+        every { characteristic.getDescriptor(UUID.fromString(BleConstants.CCCD_UUID)) } returns descriptor
+        every { characteristic.properties } returns BluetoothGattCharacteristic.PROPERTY_INDICATE
         every { gatt.setCharacteristicNotification(characteristic, true) } returns true
-        every { gatt.writeDescriptor(descriptor, any()) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
+        every { gatt.writeDescriptor(descriptor, any()) } returns BluetoothStatusCodes.SUCCESS
         @Suppress("DEPRECATION")
         every { gatt.writeDescriptor(descriptor) } returns true
         every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
@@ -414,9 +429,126 @@ class BleConnectionTest {
             callback.onDescriptorWrite(
                 gatt,
                 descriptor,
-                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+                BluetoothGatt.GATT_SUCCESS
             )
         }
-        connection.subscribeToBloodPressure()
+        val result = connection.subscribeToBloodPressure()
+
+        // Assert
+        assertThat(result).isNotNull() // Or just assert no throw
+    }
+
+    @Test
+    fun `subscribeToHealthThermometer successfully writes CCCD descriptor`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
+        val descriptor = mockk<BluetoothGattDescriptor>(relaxed = true)
+
+        connection.connect()
+        every { gatt.getService(BleConstants.HEALTH_THERMOMETER_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(BleConstants.TEMPERATURE_MEASUREMENT_CHAR_UUID) } returns characteristic
+        every { characteristic.getDescriptor(UUID.fromString(BleConstants.CCCD_UUID)) } returns descriptor
+        every { characteristic.properties } returns BluetoothGattCharacteristic.PROPERTY_INDICATE
+        every { gatt.setCharacteristicNotification(characteristic, true) } returns true
+        every { gatt.writeDescriptor(descriptor, any()) } returns BluetoothStatusCodes.SUCCESS
+        @Suppress("DEPRECATION")
+        every { gatt.writeDescriptor(descriptor) } returns true
+        every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
+
+        // Act
+        launch {
+            callback.onDescriptorWrite(gatt, descriptor, BluetoothGatt.GATT_SUCCESS)
+        }
+        connection.subscribeToHealthThermometer()
+    }
+
+    @Test
+    fun `subscribeToWeightScale successfully writes CCCD descriptor`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
+        val descriptor = mockk<BluetoothGattDescriptor>(relaxed = true)
+
+        connection.connect()
+        every { gatt.getService(BleConstants.WEIGHT_SCALE_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(BleConstants.WEIGHT_MEASUREMENT_CHAR_UUID) } returns characteristic
+        every { characteristic.getDescriptor(UUID.fromString(BleConstants.CCCD_UUID)) } returns descriptor
+        every { characteristic.properties } returns BluetoothGattCharacteristic.PROPERTY_INDICATE
+        every { gatt.setCharacteristicNotification(characteristic, true) } returns true
+        every { gatt.writeDescriptor(descriptor, any()) } returns BluetoothStatusCodes.SUCCESS
+        @Suppress("DEPRECATION")
+        every { gatt.writeDescriptor(descriptor) } returns true
+        every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
+
+        // Act
+        launch {
+            callback.onDescriptorWrite(gatt, descriptor, BluetoothGatt.GATT_SUCCESS)
+        }
+        connection.subscribeToWeightScale()
+    }
+
+    @Test
+    fun `requestMtu returns true when successful`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        connection.connect()
+        every { gatt.requestMtu(512) } returns true
+
+        // Act
+        launch {
+            callback.onMtuChanged(gatt, 512, BluetoothGatt.GATT_SUCCESS)
+        }
+        connection.requestMtu(512)
+
+        // Assert - no exception means success
+    }
+
+    @Test
+    fun `readBatteryLevel returns battery percentage when read succeeds`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<BluetoothGattService>(relaxed = true)
+
+        connection.connect()
+        every { gatt.getService(BleConstants.BATTERY_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(BleConstants.BATTERY_LEVEL_CHAR_UUID) } returns characteristic
+        every { gatt.readCharacteristic(characteristic) } returns true
+
+        val batteryLevel = byteArrayOf(95)
+
+        // Act
+        launch {
+            callback.onCharacteristicRead(
+                gatt,
+                characteristic,
+                batteryLevel,
+                BluetoothGatt.GATT_SUCCESS
+            )
+        }
+        val result = connection.readBatteryLevel()
+
+        // Assert
+        assertThat(result).isEqualTo(95)
+    }
+
+    @Test
+    fun `close disconnects and changes state to DISCONNECTED`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+
+        // Act
+        connection.close()
+
+        // Assert
+        val state = connection.connectionState.value
+        assertThat(state).isEqualTo(ConnectionState.DISCONNECTED)
     }
 }

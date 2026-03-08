@@ -1,10 +1,13 @@
 package com.sunstrinq.blesdk.core
 
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
-import com.sunstrinq.blesdk.util.MainDispatcherRule
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import com.google.common.truth.Truth.assertThat
+import com.sunstrinq.blesdk.util.MainDispatcherRule
 import io.mockk.CapturingSlot
 import io.mockk.every
 import io.mockk.mockk
@@ -152,7 +155,7 @@ class BleScannerTest {
 
         // Assert
         assertThat(scanner.isScanning.value).isFalse() // Scanning state resets on failure
-        
+
         scanJob.cancel()
     }
     // ─── reset ────────────────────────────────────────────────────────────────────
@@ -171,4 +174,80 @@ class BleScannerTest {
         assertThat(scanner.scannedDevices.value).isEmpty()
     }
 
+    // ─── onScanResult ─────────────────────────────────────────────────────────────
+
+    @Test
+    fun `onScanResult adds new device to scannedDevices`() = runTest {
+        // Arrange
+        val (leScanner, callbackSlot) = buildMockLeScanner()
+        val scanner = BleScanner(buildMockAdapter(leScanner))
+
+        scanner.startScan(backgroundScope)
+        runCurrent()
+        val callback = callbackSlot.captured
+
+        val device = mockk<BluetoothDevice>(relaxed = true)
+        every { device.name } returns "Test Device"
+        every { device.address } returns "00:11:22:33:44:55"
+
+        val result = mockk<ScanResult>(relaxed = true)
+        every { result.device } returns device
+        every { result.rssi } returns -50
+
+        // Act
+        callback.onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, result)
+        runCurrent()
+
+        // Assert
+        assertThat(scanner.scannedDevices.value).hasSize(1)
+        assertThat(scanner.scannedDevices.value.first().name).isEqualTo("Test Device")
+    }
+
+    @Test
+    fun `onScanResult filters Unknown devices when filterUnknown is true`() = runTest {
+        // Arrange
+        val (leScanner, callbackSlot) = buildMockLeScanner()
+        val scanner = BleScanner(buildMockAdapter(leScanner))
+        scanner.setFilterUnknown(true)
+
+        scanner.startScan(backgroundScope)
+        runCurrent()
+        val callback = callbackSlot.captured
+
+        val device1 = mockk<BluetoothDevice>(relaxed = true)
+        every { device1.name } returns "Unknown"
+        every { device1.address } returns "00:11:22:33:44:55"
+
+        val result1 = mockk<ScanResult>(relaxed = true)
+        every { result1.device } returns device1
+
+        val device2 = mockk<BluetoothDevice>(relaxed = true)
+        every { device2.name } returns "Valid Device"
+        every { device2.address } returns "66:77:88:99:AA:BB"
+
+        val result2 = mockk<ScanResult>(relaxed = true)
+        every { result2.device } returns device2
+
+        // Act
+        callback.onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, result1)
+        callback.onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, result2)
+        runCurrent()
+
+        // Assert
+        assertThat(scanner.scannedDevices.value).hasSize(1)
+        assertThat(scanner.scannedDevices.value.first().name).isEqualTo("Valid Device")
+    }
+
+    @Test
+    fun `startScan throws IllegalStateException when leScanner is null`() = runTest {
+        // Arrange
+        val scanner = BleScanner(buildMockAdapter(null))
+
+        // Act
+        scanner.startScan(backgroundScope)
+        runCurrent() // Should process the flow and throw IllegalStateException inside catch
+
+        // Assert: isScanning should reset to false since scanner was unavailable
+        assertThat(scanner.isScanning.value).isFalse()
+    }
 }
