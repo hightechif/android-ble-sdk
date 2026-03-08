@@ -31,7 +31,9 @@ fun ControlPanel(
     onSubscribeBloodPressureClick: () -> Unit,
     onSubscribeThermometerClick: () -> Unit,
     onSubscribeWeightScaleClick: () -> Unit,
-    onReadRssiClick: () -> Unit
+    onReadRssiClick: () -> Unit,
+    onWriteDummyClick: () -> Unit,
+    onDisableHeartRateClick: () -> Unit
 ) {
     Box(modifier = modifier) {
         Column {
@@ -131,6 +133,37 @@ fun ControlPanel(
                     Text(text = "Read RSSI", fontSize = 12.sp)
                 }
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.width(160.dp),
+                    onClick = onWriteDummyClick,
+                    enabled = isConnected,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF005073),
+                        contentColor = Color(0xFF03A9F4),
+                        disabledContainerColor = Color(0xFF3A3A3A),
+                        disabledContentColor = Color(0xFF7A7A7A)
+                    )
+                ) {
+                    Text(text = "Write Dummy Data", fontSize = 12.sp)
+                }
+                OutlinedButton(
+                    modifier = Modifier.width(160.dp),
+                    onClick = onDisableHeartRateClick,
+                    enabled = isConnected,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0xFF005073),
+                        contentColor = Color(0xFF03A9F4),
+                        disabledContainerColor = Color(0xFF3A3A3A),
+                        disabledContentColor = Color(0xFF7A7A7A)
+                    )
+                ) {
+                    Text(text = "Disable HR", fontSize = 12.sp)
+                }
+            }
         }
     }
 }
@@ -146,6 +179,8 @@ private fun ControlPanelPreview() {
         onSubscribeThermometerClick = { },
         onSubscribeWeightScaleClick = { },
         onReadRssiClick = { },
+        onWriteDummyClick = { },
+        onDisableHeartRateClick = { },
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.Black)

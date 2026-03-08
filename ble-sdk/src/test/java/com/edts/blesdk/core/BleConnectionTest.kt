@@ -181,6 +181,72 @@ class BleConnectionTest {
         assertThat(result).isTrue()
     }
 
+    // ─── disableNotifications ─────────────────────────────────────────────────────
+
+    @Test
+    fun `disableNotifications writes CCCD descriptor correctly when characteristic has NOTIFY`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+        val descriptor = mockk<android.bluetooth.BluetoothGattDescriptor>(relaxed = true)
+
+        connection.connect()
+        every { gatt.getService(serviceUuid) } returns service
+        every { service.getCharacteristic(charUuid) } returns characteristic
+        every { characteristic.getDescriptor(UUID.fromString(com.edts.blesdk.constant.BleConstants.CCCD_UUID)) } returns descriptor
+        every { gatt.setCharacteristicNotification(characteristic, false) } returns true
+        every { gatt.writeDescriptor(descriptor, any()) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
+        @Suppress("DEPRECATION")
+        every { gatt.writeDescriptor(descriptor) } returns true
+        every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
+
+        // Act
+        launch {
+            callback.onDescriptorWrite(
+                gatt,
+                descriptor,
+                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+            )
+        }
+        connection.disableNotifications(serviceUuid, charUuid)
+
+        // Assert - No exception means success
+    }
+
+    // ─── writeCharacteristic ──────────────────────────────────────────────────────
+
+    @Test
+    fun `writeCharacteristic writes data correctly when characteristic exists`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+        val dataToWrite = byteArrayOf(0x01)
+
+        connection.connect()
+        every { gatt.getService(serviceUuid) } returns service
+        every { service.getCharacteristic(charUuid) } returns characteristic
+        every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
+        every { gatt.writeCharacteristic(characteristic, dataToWrite, android.bluetooth.BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
+        @Suppress("DEPRECATION")
+        every { gatt.writeCharacteristic(characteristic) } returns true
+
+        // Act
+        launch {
+            callback.onCharacteristicWrite(
+                gatt,
+                characteristic,
+                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+            )
+        }
+        connection.writeCharacteristic(serviceUuid, charUuid, dataToWrite)
+
+        // Assert - No exception means success
+    }
+
     // ─── readRssi ─────────────────────────────────────────────────────────────────
 
     @Test

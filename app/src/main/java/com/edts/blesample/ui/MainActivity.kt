@@ -80,7 +80,9 @@ class MainActivity : ComponentActivity() {
                 onSubscribeBloodPressureClick = { viewModel.subscribeToBloodPressure() },
                 onSubscribeThermometerClick = { viewModel.subscribeToThermometer() },
                 onSubscribeWeightScaleClick = { viewModel.subscribeToWeightScale() },
-                onReadRssiClick = { viewModel.readRssi() }
+                onReadRssiClick = { viewModel.readRssi() },
+                onWriteDummyClick = { viewModel.writeDummyData() },
+                onDisableHeartRateClick = { viewModel.disableHeartRate() }
             )
         }
     }

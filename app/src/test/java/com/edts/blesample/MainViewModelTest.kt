@@ -415,6 +415,86 @@ class MainViewModelTest {
         assertThat(viewModel.logs.value).contains("Action failed")
     }
 
+    // ─── writeDummyData ──────────────────────────────────────────────────────────
+
+    @Test
+    fun `writeDummyData returns success log when writeCharacteristic succeeds`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.writeCharacteristic(any(), any(), any()) } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.writeDummyData()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: Write successful")
+    }
+
+    @Test
+    fun `writeDummyData returns error log when writeCharacteristic throws exception`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.writeCharacteristic(any(), any(), any()) } throws RuntimeException("Write failed")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.writeDummyData()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+
+    // ─── disableHeartRate ────────────────────────────────────────────────────────
+
+    @Test
+    fun `disableHeartRate returns success log when disableNotifications succeeds`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.disableNotifications(any(), any()) } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.disableHeartRate()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action: HR notifications disabled")
+    }
+
+    @Test
+    fun `disableHeartRate returns error log when disableNotifications throws exception`() = runTest {
+        // Arrange
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.disableNotifications(any(), any()) } throws RuntimeException("Disable failed")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        // Act
+        viewModel.disableHeartRate()
+        advanceUntilIdle()
+
+        // Assert
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+
     // ─── disconnect ───────────────────────────────────────────────────────────────
 
     @Test

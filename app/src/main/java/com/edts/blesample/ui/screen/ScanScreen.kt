@@ -42,7 +42,9 @@ fun ScanScreen(
     onSubscribeBloodPressureClick: () -> Unit,
     onSubscribeThermometerClick: () -> Unit,
     onSubscribeWeightScaleClick: () -> Unit,
-    onReadRssiClick: () -> Unit
+    onReadRssiClick: () -> Unit,
+    onWriteDummyClick: () -> Unit,
+    onDisableHeartRateClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -117,6 +119,8 @@ fun ScanScreen(
             onSubscribeThermometerClick = onSubscribeThermometerClick,
             onSubscribeWeightScaleClick = onSubscribeWeightScaleClick,
             onReadRssiClick = onReadRssiClick,
+            onWriteDummyClick = onWriteDummyClick,
+            onDisableHeartRateClick = onDisableHeartRateClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.Black)
@@ -168,7 +172,9 @@ fun ScanScreenPreview() {
             onSubscribeBloodPressureClick = {},
             onSubscribeThermometerClick = {},
             onSubscribeWeightScaleClick = {},
-            onReadRssiClick = {}
+            onReadRssiClick = {},
+            onWriteDummyClick = {},
+            onDisableHeartRateClick = {}
         )
     }
 }

@@ -229,6 +229,38 @@ class MainViewModel(
         }
     }
 
+    fun writeDummyData() {
+        log("Action: Write Characteristic request...")
+        viewModelScope.launch {
+            try {
+                // Writing a dummy byte to a characteristic (e.g. Device Info Service -> Model Number)
+                bleConnection?.writeCharacteristic(
+                    BleConstants.DEVICE_INFORMATION_SERVICE_UUID,
+                    BleConstants.MODEL_NUMBER_STRING_CHAR_UUID,
+                    byteArrayOf(0x01)
+                )
+                log("Action: Write successful")
+            } catch (e: Exception) {
+                log("Action failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
+    fun disableHeartRate() {
+        log("Action: Disable HR notifications request...")
+        viewModelScope.launch {
+            try {
+                bleConnection?.disableNotifications(
+                    BleConstants.HEART_RATE_SERVICE_UUID,
+                    BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID
+                )
+                log("Action: HR notifications disabled")
+            } catch (e: Exception) {
+                log("Action failed: ${e.localizedMessage}")
+            }
+        }
+    }
+
     fun disconnect() {
         log("Action: Disconnect request...")
         bleConnection?.close()
