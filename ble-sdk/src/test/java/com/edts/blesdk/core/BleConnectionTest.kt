@@ -204,7 +204,7 @@ class BleConnectionTest {
     }
 
     @Test
-    fun `readRssi returns null when gatt callback fires failure`() = runTest {
+    fun `readRssi throws Exception when gatt callback fires failure`() = runTest {
         // Arrange
         val connection = buildConnection()
         val callback = getGattCallback(connection)
@@ -215,10 +215,17 @@ class BleConnectionTest {
         launch {
             callback.onReadRemoteRssi(gatt, 0, android.bluetooth.BluetoothGatt.GATT_FAILURE)
         }
-        val result = connection.readRssi()
+        
+        var exception: Exception? = null
+        try {
+            connection.readRssi()
+        } catch (e: Exception) {
+            exception = e
+        }
 
         // Assert
-        assertThat(result).isNull()
+        assertThat(exception).isNotNull()
+        assertThat(exception?.message).contains("failed")
     }
 
     // ─── notifications ────────────────────────────────────────────────────────────
