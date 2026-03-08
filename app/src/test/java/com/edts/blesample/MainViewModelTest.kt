@@ -5,7 +5,7 @@ import com.edts.blesample.ui.MainViewModel
 import com.edts.blesdk.core.BleConnection
 import com.edts.blesdk.core.BleManager
 import com.edts.blesdk.core.BleScanner
-import com.edts.blesdk.core.ConnectionState
+import com.edts.blesdk.model.ConnectionState
 import com.edts.blesdk.model.BleDevice
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
@@ -309,178 +309,59 @@ class MainViewModelTest {
         assertThat(viewModel.logs.value).contains("Connecting to MyWatch...")
     }
 
-    // ─── readNotification ─────────────────────────────────────────────────────────
+    // ─── subscribeToHeartRate ─────────────────────────────────────────────────────────
 
     @Test
-    fun `readNotification returns log appended when called`() = runTest {
+    fun `subscribeToHeartRate returns log appended when called`() = runTest {
         // Arrange — ViewModel already initialized in setUp
 
         // Act
-        viewModel.readNotification()
+        viewModel.subscribeToHeartRate()
         advanceUntilIdle()
 
         // Assert
-        assertThat(viewModel.logs.value).contains("Action: Read Notification request...")
+        assertThat(viewModel.logs.value).contains("Action: Enable HR notifications...")
     }
 
     @Test
-    fun `readNotification returns success log when enableNotifications succeeds`() = runTest {
+    fun `subscribeToHeartRate returns success log when subscribeToHeartRate succeeds`() = runTest {
         // Arrange
         val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
         every { bleManager.connect(device) } returns bleConnection
         every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
         every { bleConnection.notifications } returns flowOf()
-        coEvery { bleConnection.enableNotifications(any(), any()) } returns Unit
+        coEvery { bleConnection.subscribeToHeartRate() } returns Unit
         viewModel.connectToDevice(device)
         advanceUntilIdle()
 
         // Act
-        viewModel.readNotification()
+        viewModel.subscribeToHeartRate()
         advanceUntilIdle()
 
         // Assert
-        assertThat(viewModel.logs.value).contains("Notifications enabled for dummy char")
+        assertThat(viewModel.logs.value).contains("Action: Subscribed to Heart Rate")
     }
 
     @Test
-    fun `readNotification returns error log when enableNotifications throws exception`() = runTest {
+    fun `subscribeToHeartRate returns error log when subscribeToHeartRate throws exception`() = runTest {
         // Arrange
         val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
         every { bleManager.connect(device) } returns bleConnection
         every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
         every { bleConnection.notifications } returns flowOf()
         coEvery {
-            bleConnection.enableNotifications(
-                any(),
-                any()
-            )
+            bleConnection.subscribeToHeartRate()
         } throws RuntimeException("BLE error")
         viewModel.connectToDevice(device)
         advanceUntilIdle()
 
         // Act
-        viewModel.readNotification()
+        viewModel.subscribeToHeartRate()
         advanceUntilIdle()
 
         // Assert
         assertThat(viewModel.logs.value).contains("Action failed")
     }
-
-    // ─── writeMessage ─────────────────────────────────────────────────────────────
-
-    @Test
-    fun `writeMessage returns log appended when called`() = runTest {
-        // Arrange — ViewModel already initialized in setUp
-
-        // Act
-        viewModel.writeMessage()
-        advanceUntilIdle()
-
-        // Assert
-        assertThat(viewModel.logs.value).contains("Action: Write Message request...")
-    }
-
-    @Test
-    fun `writeMessage returns success log when writeCharacteristic succeeds`() = runTest {
-        // Arrange
-        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
-        every { bleManager.connect(device) } returns bleConnection
-        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
-        every { bleConnection.notifications } returns flowOf()
-        coEvery { bleConnection.writeCharacteristic(any(), any(), any()) } returns Unit
-        viewModel.connectToDevice(device)
-        advanceUntilIdle()
-
-        // Act
-        viewModel.writeMessage()
-        advanceUntilIdle()
-
-        // Assert
-        assertThat(viewModel.logs.value).contains("Action: Message written")
-    }
-
-    @Test
-    fun `writeMessage returns error log when writeCharacteristic throws exception`() = runTest {
-        // Arrange
-        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
-        every { bleManager.connect(device) } returns bleConnection
-        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
-        every { bleConnection.notifications } returns flowOf()
-        coEvery {
-            bleConnection.writeCharacteristic(
-                any(),
-                any(),
-                any()
-            )
-        } throws RuntimeException("Write failed")
-        viewModel.connectToDevice(device)
-        advanceUntilIdle()
-
-        // Act
-        viewModel.writeMessage()
-        advanceUntilIdle()
-
-        // Assert
-        assertThat(viewModel.logs.value).contains("Action failed")
-    }
-
-    // ─── disableNotification ──────────────────────────────────────────────────────
-
-    @Test
-    fun `disableNotification returns log appended when called`() = runTest {
-        // Arrange — ViewModel already initialized in setUp
-
-        // Act
-        viewModel.disableNotification()
-        advanceUntilIdle()
-
-        // Assert
-        assertThat(viewModel.logs.value).contains("Action: Disable Notification request...")
-    }
-
-    @Test
-    fun `disableNotification returns success log when disableNotifications succeeds`() = runTest {
-        // Arrange
-        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
-        every { bleManager.connect(device) } returns bleConnection
-        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
-        every { bleConnection.notifications } returns flowOf()
-        coEvery { bleConnection.disableNotifications(any(), any()) } returns Unit
-        viewModel.connectToDevice(device)
-        advanceUntilIdle()
-
-        // Act
-        viewModel.disableNotification()
-        advanceUntilIdle()
-
-        // Assert
-        assertThat(viewModel.logs.value).contains("Action: Notifications disabled")
-    }
-
-    @Test
-    fun `disableNotification returns error log when disableNotifications throws exception`() =
-        runTest {
-            // Arrange
-            val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
-            every { bleManager.connect(device) } returns bleConnection
-            every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
-            every { bleConnection.notifications } returns flowOf()
-            coEvery {
-                bleConnection.disableNotifications(
-                    any(),
-                    any()
-                )
-            } throws RuntimeException("Disable failed")
-            viewModel.connectToDevice(device)
-            advanceUntilIdle()
-
-            // Act
-            viewModel.disableNotification()
-            advanceUntilIdle()
-
-            // Assert
-            assertThat(viewModel.logs.value).contains("Action failed")
-        }
 
     // ─── readRssi ─────────────────────────────────────────────────────────────────
 

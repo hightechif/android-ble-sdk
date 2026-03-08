@@ -249,4 +249,106 @@ class BleConnectionTest {
         assertThat(notification.charUuid).isEqualTo(charUuid)
         assertThat(notification.data).isEqualTo(expectedData)
     }
+
+    // ─── High-Level Helpers ───────────────────────────────────────────────────────
+
+    @Test
+    fun `readDeviceManufacturerName returns parsed string when read succeeds`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+
+        connection.connect()
+        // Mock gatt to return the characteristic properly
+        every { gatt.getService(com.edts.blesdk.constant.BleConstants.DEVICE_INFORMATION_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(com.edts.blesdk.constant.BleConstants.MANUFACTURER_NAME_STRING_CHAR_UUID) } returns characteristic
+        every { gatt.readCharacteristic(characteristic) } returns true
+
+        val manufacturerName = "TestManufacturer"
+        val manufacturerData = manufacturerName.toByteArray(Charsets.UTF_8)
+
+        // Act
+        val resultDeferred = async { connection.readDeviceManufacturerName() }
+        
+        callback.onCharacteristicRead(
+            gatt,
+            characteristic,
+            manufacturerData,
+            android.bluetooth.BluetoothGatt.GATT_SUCCESS
+        )
+
+        val result = resultDeferred.await()
+
+        // Assert
+        assertThat(result).isEqualTo(manufacturerName)
+    }
+
+    @Test
+    fun `subscribeToHeartRate successfully writes CCCD descriptor`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+        val descriptor = mockk<android.bluetooth.BluetoothGattDescriptor>(relaxed = true)
+
+        connection.connect()
+        every { gatt.getService(com.edts.blesdk.constant.BleConstants.HEART_RATE_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(com.edts.blesdk.constant.BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID) } returns characteristic
+        every { characteristic.getDescriptor(UUID.fromString(com.edts.blesdk.constant.BleConstants.CCCD_UUID)) } returns descriptor
+        // Setting NOTIFY property
+        every { characteristic.properties } returns android.bluetooth.BluetoothGattCharacteristic.PROPERTY_NOTIFY
+        every { gatt.setCharacteristicNotification(characteristic, true) } returns true
+        every { gatt.writeDescriptor(descriptor, any()) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
+        @Suppress("DEPRECATION")
+        every { gatt.writeDescriptor(descriptor) } returns true
+        every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
+
+        // Act
+        val resultDeferred = async { connection.subscribeToHeartRate() }
+        
+        callback.onDescriptorWrite(
+            gatt,
+            descriptor,
+            android.bluetooth.BluetoothGatt.GATT_SUCCESS
+        )
+
+        resultDeferred.await()
+
+        // Assert (No exception means success)
+    }
+
+    @Test
+    fun `subscribeToBloodPressure successfully writes CCCD descriptor`() = runTest {
+        // Arrange
+        val connection = buildConnection()
+        val callback = getGattCallback(connection)
+        val characteristic = mockk<android.bluetooth.BluetoothGattCharacteristic>(relaxed = true)
+        val service = mockk<android.bluetooth.BluetoothGattService>(relaxed = true)
+        val descriptor = mockk<android.bluetooth.BluetoothGattDescriptor>(relaxed = true)
+
+        connection.connect()
+        every { gatt.getService(com.edts.blesdk.constant.BleConstants.BLOOD_PRESSURE_SERVICE_UUID) } returns service
+        every { service.getCharacteristic(com.edts.blesdk.constant.BleConstants.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID) } returns characteristic
+        every { characteristic.getDescriptor(UUID.fromString(com.edts.blesdk.constant.BleConstants.CCCD_UUID)) } returns descriptor
+        every { characteristic.properties } returns android.bluetooth.BluetoothGattCharacteristic.PROPERTY_INDICATE
+        every { gatt.setCharacteristicNotification(characteristic, true) } returns true
+        every { gatt.writeDescriptor(descriptor, any()) } returns android.bluetooth.BluetoothStatusCodes.SUCCESS
+        @Suppress("DEPRECATION")
+        every { gatt.writeDescriptor(descriptor) } returns true
+        every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
+
+        // Act
+        val resultDeferred = async { connection.subscribeToBloodPressure() }
+        
+        callback.onDescriptorWrite(
+            gatt,
+            descriptor,
+            android.bluetooth.BluetoothGatt.GATT_SUCCESS
+        )
+
+        resultDeferred.await()
+    }
 }

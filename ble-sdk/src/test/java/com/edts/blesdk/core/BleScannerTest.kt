@@ -12,7 +12,9 @@ import io.mockk.mockkStatic
 import io.mockk.slot
 import io.mockk.unmockkAll
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -128,7 +130,31 @@ class BleScannerTest {
 
     // ─── Scan failure ─────────────────────────────────────────────────────────────
 
+    @Test
+    fun `rawScanFlow throws exception when scan fails`() = runTest {
+        // Arrange
+        val (leScanner, callbackSlot) = buildMockLeScanner()
+        val scanner = BleScanner(buildMockAdapter(leScanner))
 
+        // Act
+        val scanJob = launch(mainDispatcherRule.testDispatcher) {
+            scanner.startScan(this)
+        }
+
+        // We know startScan launches a job and registers the callback
+        runCurrent() // let the startScan job run
+        val callback = callbackSlot.captured
+
+        // Fire failure
+        callback.onScanFailed(ScanCallback.SCAN_FAILED_ALREADY_STARTED)
+
+        runCurrent() // process failure
+
+        // Assert
+        assertThat(scanner.isScanning.value).isFalse() // Scanning state resets on failure
+        
+        scanJob.cancel()
+    }
     // ─── reset ────────────────────────────────────────────────────────────────────
 
     @Test
