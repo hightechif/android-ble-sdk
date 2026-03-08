@@ -1,4 +1,4 @@
-package com.edts.blesdk.core
+package com.edts.blesdk.model
 
 sealed class BleResult {
     data class Success(val data: ByteArray?) : BleResult() {

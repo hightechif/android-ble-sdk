@@ -3,26 +3,23 @@ package com.edts.blesample.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.edts.blesdk.constant.BleConstants
 import com.edts.blesdk.core.BleConnection
 import com.edts.blesdk.core.BleManager
 import com.edts.blesdk.core.BleScanner
-import com.edts.blesdk.core.ConnectionState
 import com.edts.blesdk.model.BleDevice
+import com.edts.blesdk.model.ConnectionState
+import com.edts.blesdk.util.BleExtensions
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 class MainViewModel(
     application: Application,
     private val bleManager: BleManager
 ) : AndroidViewModel(application) {
-
-    // Dummy UUIDs for demonstration purposes
-    private val DUMMY_SERVICE_UUID = UUID.fromString("0000180d-0000-1000-8000-00805f9b34fb")
-    private val DUMMY_CHAR_UUID = UUID.fromString("00002a37-0000-1000-8000-00805f9b34fb")
 
     private var bleConnection: BleConnection? = null
     private var connectionJob: Job? = null
@@ -144,27 +141,23 @@ class MainViewModel(
         notificationsJob = viewModelScope.launch {
             bleConnection?.notifications?.collect { notification ->
                 when (notification.charUuid) {
-                    com.edts.blesdk.util.BleExtensions.HEART_RATE_MEASUREMENT_CHAR_UUID -> {
-                        val hr =
-                            com.edts.blesdk.util.BleExtensions.parseHeartRate(notification.data)
+                    BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID -> {
+                        val hr = BleExtensions.parseHeartRate(notification.data)
                         log("Notification Heart Rate: $hr bpm")
                     }
 
-                    com.edts.blesdk.util.BleExtensions.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID -> {
-                        val bp =
-                            com.edts.blesdk.util.BleExtensions.parseBloodPressure(notification.data)
+                    BleConstants.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID -> {
+                        val bp = BleExtensions.parseBloodPressure(notification.data)
                         log("Notification Blood Pressure: ${bp?.systolic}/${bp?.diastolic} (MAP: ${bp?.map})")
                     }
 
-                    com.edts.blesdk.util.BleExtensions.TEMPERATURE_MEASUREMENT_CHAR_UUID -> {
-                        val temp =
-                            com.edts.blesdk.util.BleExtensions.parseHealthThermometer(notification.data)
+                    BleConstants.TEMPERATURE_MEASUREMENT_CHAR_UUID -> {
+                        val temp = BleExtensions.parseHealthThermometer(notification.data)
                         log("Notification Temperature: ${temp?.temperature} ${if (temp?.unitIsFahrenheit == true) "F" else "C"}")
                     }
 
-                    com.edts.blesdk.util.BleExtensions.WEIGHT_MEASUREMENT_CHAR_UUID -> {
-                        val weight =
-                            com.edts.blesdk.util.BleExtensions.parseWeightMeasurement(notification.data)
+                    BleConstants.WEIGHT_MEASUREMENT_CHAR_UUID -> {
+                        val weight = BleExtensions.parseWeightMeasurement(notification.data)
                         log("Notification Weight: ${weight?.weight} ${if (weight?.unitIsLbs == true) "lbs" else "kg"}")
                     }
 

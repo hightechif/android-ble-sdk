@@ -2,6 +2,7 @@ package com.edts.blesdk.util
 
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import com.edts.blesdk.constant.BleConstants
 
 class BleExtensionsTest {
 
@@ -146,45 +147,24 @@ class BleExtensionsTest {
     // ─── UUID constants ───────────────────────────────────────────────────────────
 
     @Test
-    fun `HEART_RATE_SERVICE_UUID returns correct string representation when accessed`() {
-        // Arrange — constant under test
-
-        // Act
-        val uuid = BleExtensions.HEART_RATE_SERVICE_UUID
-
-        // Assert
+    fun `HEART_RATE_SERVICE_UUID is correct`() {
+        val uuid = BleConstants.HEART_RATE_SERVICE_UUID
         assertThat(uuid.toString()).isEqualTo("0000180d-0000-1000-8000-00805f9b34fb")
     }
 
     @Test
-    fun `HEART_RATE_MEASUREMENT_CHAR_UUID returns correct string representation when accessed`() {
-        // Arrange — constant under test
-
-        // Act
-        val uuid = BleExtensions.HEART_RATE_MEASUREMENT_CHAR_UUID
-
-        // Assert
+    fun `HEART_RATE_MEASUREMENT_CHAR_UUID is correct`() {
+        val uuid = BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID
         assertThat(uuid.toString()).isEqualTo("00002a37-0000-1000-8000-00805f9b34fb")
     }
 
     @Test
-    fun `BATTERY_SERVICE_UUID returns correct string representation when accessed`() {
-        // Arrange — constant under test
-
-        // Act
-        val uuid = BleExtensions.BATTERY_SERVICE_UUID
-
-        // Assert
+    fun `BATTERY_SERVICE_UUID is correct`() {
+        val uuid = BleConstants.BATTERY_SERVICE_UUID
         assertThat(uuid.toString()).isEqualTo("0000180f-0000-1000-8000-00805f9b34fb")
     }
 
     @Test
-    fun `BATTERY_LEVEL_CHAR_UUID returns correct string representation when accessed`() {
-        // Arrange — constant under test
-
-        // Act
-        val uuid = BleExtensions.BATTERY_LEVEL_CHAR_UUID
-
         // Assert
         assertThat(uuid.toString()).isEqualTo("00002a19-0000-1000-8000-00805f9b34fb")
     }

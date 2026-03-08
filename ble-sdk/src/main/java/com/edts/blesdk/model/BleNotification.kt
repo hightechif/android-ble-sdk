@@ -1,4 +1,4 @@
-package com.edts.blesdk.core
+package com.edts.blesdk.model
 
 import java.util.UUID
 

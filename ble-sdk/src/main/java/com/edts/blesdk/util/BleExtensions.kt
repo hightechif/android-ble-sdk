@@ -1,51 +1,12 @@
 package com.edts.blesdk.util
 
 import android.bluetooth.BluetoothGattCharacteristic
-import java.util.UUID
+import com.edts.blesdk.model.BloodPressureMeasurement
+import com.edts.blesdk.model.TemperatureMeasurement
+import com.edts.blesdk.model.WeightMeasurementData
 import kotlin.math.pow
 
 object BleExtensions {
-
-    private const val BASE_UUID_FORMAT = "0000%04x-0000-1000-8000-00805f9b34fb"
-
-    /**
-     * Generates a standard Bluetooth SIG UUID from a 16-bit short UUID.
-     */
-    fun getSigUuid(shortUuid16: Int): UUID {
-        return UUID.fromString(String.format(BASE_UUID_FORMAT, shortUuid16))
-    }
-
-    // Standard Services
-    val HEART_RATE_SERVICE_UUID = getSigUuid(0x180D)
-    val BATTERY_SERVICE_UUID = getSigUuid(0x180F)
-    val BLOOD_PRESSURE_SERVICE_UUID = getSigUuid(0x1810)
-    val HEALTH_THERMOMETER_SERVICE_UUID = getSigUuid(0x1809)
-    val DEVICE_INFORMATION_SERVICE_UUID = getSigUuid(0x180A)
-    val WEIGHT_SCALE_SERVICE_UUID = getSigUuid(0x181D)
-    val GLUCOSE_SERVICE_UUID = getSigUuid(0x1808)
-    val CYCLING_SPEED_CADENCE_SERVICE_UUID = getSigUuid(0x1816)
-    val RUNNING_SPEED_CADENCE_SERVICE_UUID = getSigUuid(0x1814)
-    val ENVIRONMENTAL_SENSING_SERVICE_UUID = getSigUuid(0x181A)
-    val BODY_COMPOSITION_SERVICE_UUID = getSigUuid(0x181B)
-    val CURRENT_TIME_SERVICE_UUID = getSigUuid(0x1805)
-
-    // Standard Characteristics
-    val HEART_RATE_MEASUREMENT_CHAR_UUID = getSigUuid(0x2A37)
-    val BATTERY_LEVEL_CHAR_UUID = getSigUuid(0x2A19)
-    val BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID = getSigUuid(0x2A35)
-    val TEMPERATURE_MEASUREMENT_CHAR_UUID = getSigUuid(0x2A1C)
-    val WEIGHT_MEASUREMENT_CHAR_UUID = getSigUuid(0x2A9D)
-    val GLUCOSE_MEASUREMENT_CHAR_UUID = getSigUuid(0x2A18)
-    val CURRENT_TIME_CHAR_UUID = getSigUuid(0x2A2B)
-
-    // Device Information Characteristics
-    val SYSTEM_ID_CHAR_UUID = getSigUuid(0x2A23)
-    val MODEL_NUMBER_STRING_CHAR_UUID = getSigUuid(0x2A24)
-    val SERIAL_NUMBER_STRING_CHAR_UUID = getSigUuid(0x2A25)
-    val FIRMWARE_REVISION_STRING_CHAR_UUID = getSigUuid(0x2A26)
-    val HARDWARE_REVISION_STRING_CHAR_UUID = getSigUuid(0x2A27)
-    val SOFTWARE_REVISION_STRING_CHAR_UUID = getSigUuid(0x2A28)
-    val MANUFACTURER_NAME_STRING_CHAR_UUID = getSigUuid(0x2A29)
 
     // --- Parsing Functions (conforming to Bluetooth SIG specs) ---
 
@@ -117,13 +78,6 @@ object BleExtensions {
         return (signedMantissa * 10.0.pow(signedExponent.toDouble())).toFloat()
     }
 
-    data class BloodPressureMeasurement(
-        val systolic: Float,
-        val diastolic: Float,
-        val map: Float,
-        val unitIsKpa: Boolean
-    )
-
     fun parseBloodPressure(data: ByteArray): BloodPressureMeasurement? {
         if (data.size < 7) return null
         val flags = data[0].toInt()
@@ -135,8 +89,6 @@ object BleExtensions {
         return BloodPressureMeasurement(sys, dia, map, unitIsKpa)
     }
 
-    data class TemperatureMeasurement(val temperature: Float, val unitIsFahrenheit: Boolean)
-
     fun parseHealthThermometer(data: ByteArray): TemperatureMeasurement? {
         if (data.size < 5) return null
         val flags = data[0].toInt()
@@ -144,8 +96,6 @@ object BleExtensions {
         val temp = bytesToFloat(data, 1)
         return TemperatureMeasurement(temp, unitIsFahrenheit)
     }
-
-    data class WeightMeasurementData(val weight: Float, val unitIsLbs: Boolean)
 
     fun parseWeightMeasurement(data: ByteArray): WeightMeasurementData? {
         if (data.size < 3) return null

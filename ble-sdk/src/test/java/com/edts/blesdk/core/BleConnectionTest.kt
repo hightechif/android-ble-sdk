@@ -2,6 +2,7 @@ package com.edts.blesdk.core
 
 import android.bluetooth.BluetoothDevice
 import android.content.Context
+import com.edts.blesdk.model.ConnectionState
 import com.google.common.truth.Truth.assertThat
 import io.mockk.every
 import io.mockk.mockk

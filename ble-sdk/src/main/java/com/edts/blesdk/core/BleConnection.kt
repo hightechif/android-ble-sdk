@@ -22,7 +22,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
-
+import com.edts.blesdk.model.BleOperation
+import com.edts.blesdk.model.BleResult
+import com.edts.blesdk.model.BleNotification
+import com.edts.blesdk.model.ConnectionState
+import com.edts.blesdk.constant.BleConstants
 @SuppressLint("MissingPermission")
 class BleConnection(
     context: Context,
@@ -133,45 +137,45 @@ class BleConnection(
 
     suspend fun readBatteryLevel(): Int? {
         val data = readCharacteristic(
-            com.edts.blesdk.util.BleExtensions.BATTERY_SERVICE_UUID,
-            com.edts.blesdk.util.BleExtensions.BATTERY_LEVEL_CHAR_UUID
+            BleConstants.BATTERY_SERVICE_UUID,
+            BleConstants.BATTERY_LEVEL_CHAR_UUID
         ) ?: return null
         return com.edts.blesdk.util.BleExtensions.parseBatteryLevel(data)
     }
 
     suspend fun readDeviceManufacturerName(): String? {
         val data = readCharacteristic(
-            com.edts.blesdk.util.BleExtensions.DEVICE_INFORMATION_SERVICE_UUID,
-            com.edts.blesdk.util.BleExtensions.MANUFACTURER_NAME_STRING_CHAR_UUID
+            BleConstants.DEVICE_INFORMATION_SERVICE_UUID,
+            BleConstants.MANUFACTURER_NAME_STRING_CHAR_UUID
         ) ?: return null
         return com.edts.blesdk.util.BleExtensions.parseString(data)
     }
 
     suspend fun subscribeToHeartRate() {
         enableNotifications(
-            com.edts.blesdk.util.BleExtensions.HEART_RATE_SERVICE_UUID,
-            com.edts.blesdk.util.BleExtensions.HEART_RATE_MEASUREMENT_CHAR_UUID
+            BleConstants.HEART_RATE_SERVICE_UUID,
+            BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID
         )
     }
 
     suspend fun subscribeToBloodPressure() {
         enableNotifications(
-            com.edts.blesdk.util.BleExtensions.BLOOD_PRESSURE_SERVICE_UUID,
-            com.edts.blesdk.util.BleExtensions.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID
+            BleConstants.BLOOD_PRESSURE_SERVICE_UUID,
+            BleConstants.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID
         )
     }
 
     suspend fun subscribeToHealthThermometer() {
         enableNotifications(
-            com.edts.blesdk.util.BleExtensions.HEALTH_THERMOMETER_SERVICE_UUID,
-            com.edts.blesdk.util.BleExtensions.TEMPERATURE_MEASUREMENT_CHAR_UUID
+            BleConstants.HEALTH_THERMOMETER_SERVICE_UUID,
+            BleConstants.TEMPERATURE_MEASUREMENT_CHAR_UUID
         )
     }
 
     suspend fun subscribeToWeightScale() {
         enableNotifications(
-            com.edts.blesdk.util.BleExtensions.WEIGHT_SCALE_SERVICE_UUID,
-            com.edts.blesdk.util.BleExtensions.WEIGHT_MEASUREMENT_CHAR_UUID
+            BleConstants.WEIGHT_SCALE_SERVICE_UUID,
+            BleConstants.WEIGHT_MEASUREMENT_CHAR_UUID
         )
     }
 
@@ -256,7 +260,7 @@ class BleConnection(
                         gatt.setCharacteristicNotification(characteristic, true)
 
                         val descriptor =
-                            characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                            characteristic.getDescriptor(UUID.fromString(BleConstants.CCCD_UUID))
                         if (descriptor != null) {
                             val descriptorValue =
                                 if ((characteristic.properties and BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
@@ -293,7 +297,7 @@ class BleConnection(
                         gatt.setCharacteristicNotification(characteristic, false)
 
                         val descriptor =
-                            characteristic.getDescriptor(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))
+                            characteristic.getDescriptor(UUID.fromString(BleConstants.CCCD_UUID))
                         if (descriptor != null) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 val result = gatt.writeDescriptor(
