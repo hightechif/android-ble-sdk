@@ -277,16 +277,15 @@ class BleConnectionTest {
         val manufacturerData = manufacturerName.toByteArray(Charsets.UTF_8)
 
         // Act
-        val resultDeferred = async { connection.readDeviceManufacturerName() }
-        
-        callback.onCharacteristicRead(
-            gatt,
-            characteristic,
-            manufacturerData,
-            android.bluetooth.BluetoothGatt.GATT_SUCCESS
-        )
-
-        val result = resultDeferred.await()
+        launch {
+            callback.onCharacteristicRead(
+                gatt,
+                characteristic,
+                manufacturerData,
+                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+            )
+        }
+        val result = connection.readDeviceManufacturerName()
 
         // Assert
         assertThat(result).isEqualTo(manufacturerName)
@@ -314,15 +313,14 @@ class BleConnectionTest {
         every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
 
         // Act
-        val resultDeferred = async { connection.subscribeToHeartRate() }
-        
-        callback.onDescriptorWrite(
-            gatt,
-            descriptor,
-            android.bluetooth.BluetoothGatt.GATT_SUCCESS
-        )
-
-        resultDeferred.await()
+        launch {
+            callback.onDescriptorWrite(
+                gatt,
+                descriptor,
+                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+            )
+        }
+        connection.subscribeToHeartRate()
 
         // Assert (No exception means success)
     }
@@ -348,14 +346,13 @@ class BleConnectionTest {
         every { gatt.device.bondState } returns BluetoothDevice.BOND_BONDED
 
         // Act
-        val resultDeferred = async { connection.subscribeToBloodPressure() }
-        
-        callback.onDescriptorWrite(
-            gatt,
-            descriptor,
-            android.bluetooth.BluetoothGatt.GATT_SUCCESS
-        )
-
-        resultDeferred.await()
+        launch {
+            callback.onDescriptorWrite(
+                gatt,
+                descriptor,
+                android.bluetooth.BluetoothGatt.GATT_SUCCESS
+            )
+        }
+        connection.subscribeToBloodPressure()
     }
 }
