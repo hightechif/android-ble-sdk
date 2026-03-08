@@ -82,7 +82,8 @@ class BleScanner(private val bluetoothAdapter: BluetoothAdapter) {
                     if (isNew) {
                         _rawDevices.update { it + device }
 
-                        val passesFilter = if (_filterUnknown.value) device.name != "Unknown" else true
+                        val passesFilter =
+                            if (_filterUnknown.value) device.name != "Unknown" else true
                         if (passesFilter) {
                             _scannedDevices.update { it + device }
                         }

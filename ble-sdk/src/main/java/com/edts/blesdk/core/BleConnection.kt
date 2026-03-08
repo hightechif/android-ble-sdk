@@ -10,7 +10,6 @@ import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
 import android.os.Build
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -23,13 +22,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
-
-enum class ConnectionState {
-    DISCONNECTED,
-    CONNECTING,
-    CONNECTED,
-    DISCONNECTING
-}
 
 @SuppressLint("MissingPermission")
 class BleConnection(
@@ -386,7 +378,14 @@ class BleConnection(
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(null))
                 } else {
-                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("MTU request failed", status)))
+                    pendingOperation?.completion?.complete(
+                        BleResult.Error(
+                            getGattErrorMessage(
+                                "MTU request failed",
+                                status
+                            )
+                        )
+                    )
                 }
             }
         }
@@ -415,7 +414,14 @@ class BleConnection(
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(value))
                 } else {
-                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("Read failed", status)))
+                    pendingOperation?.completion?.complete(
+                        BleResult.Error(
+                            getGattErrorMessage(
+                                "Read failed",
+                                status
+                            )
+                        )
+                    )
                 }
             }
         }
@@ -429,7 +435,14 @@ class BleConnection(
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(null))
                 } else {
-                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("Write failed", status)))
+                    pendingOperation?.completion?.complete(
+                        BleResult.Error(
+                            getGattErrorMessage(
+                                "Write failed",
+                                status
+                            )
+                        )
+                    )
                 }
             }
         }
@@ -443,7 +456,14 @@ class BleConnection(
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     pendingOperation?.completion?.complete(BleResult.Success(null))
                 } else {
-                    pendingOperation?.completion?.complete(BleResult.Error(getGattErrorMessage("Descriptor write failed", status)))
+                    pendingOperation?.completion?.complete(
+                        BleResult.Error(
+                            getGattErrorMessage(
+                                "Descriptor write failed",
+                                status
+                            )
+                        )
+                    )
                 }
             }
         }
@@ -485,100 +505,11 @@ class BleConnection(
                 BluetoothGatt.GATT_INSUFFICIENT_AUTHENTICATION,
                 BluetoothGatt.GATT_INSUFFICIENT_AUTHORIZATION,
                 BluetoothGatt.GATT_INSUFFICIENT_ENCRYPTION -> "$baseMessage: Secure Bonding Required (Status $status)"
+
                 133 -> "$baseMessage: Connection/GATT Error 133 (Device may require pairing or restarted)"
                 BluetoothGatt.GATT_CONNECTION_CONGESTED -> "$baseMessage: Connection Congested"
                 else -> "$baseMessage: Status $status"
             }
         }
     }
-}
-
-data class BleNotification(
-    val serviceUuid: UUID,
-    val charUuid: UUID,
-    val data: ByteArray
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as BleNotification
-
-        if (serviceUuid != other.serviceUuid) return false
-        if (charUuid != other.charUuid) return false
-        if (!data.contentEquals(other.data)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = serviceUuid.hashCode()
-        result = 31 * result + charUuid.hashCode()
-        result = 31 * result + data.contentHashCode()
-        return result
-    }
-}
-
-// Sealed classes for operations
-sealed class BleOperation {
-    val completion = CompletableDeferred<BleResult>()
-
-    class DiscoverServices : BleOperation()
-    data class RequestMtu(val mtu: Int) : BleOperation()
-    data class ReadCharacteristic(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
-    data class WriteCharacteristic(
-        val serviceUuid: UUID,
-        val charUuid: UUID,
-        val value: ByteArray
-    ) : BleOperation() {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as WriteCharacteristic
-
-            if (serviceUuid != other.serviceUuid) return false
-            if (charUuid != other.charUuid) return false
-            if (!value.contentEquals(other.value)) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            var result = serviceUuid.hashCode()
-            result = 31 * result + charUuid.hashCode()
-            result = 31 * result + value.contentHashCode()
-            return result
-        }
-    }
-
-    data class EnableNotifications(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
-    data class DisableNotifications(val serviceUuid: UUID, val charUuid: UUID) : BleOperation()
-    class ReadRssi : BleOperation()
-}
-
-sealed class BleResult {
-    data class Success(val data: ByteArray?) : BleResult() {
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as Success
-
-            if (data != null) {
-                if (other.data == null) return false
-                if (!data.contentEquals(other.data)) return false
-            } else if (other.data != null) return false
-
-            return true
-        }
-
-        override fun hashCode(): Int {
-            return data?.contentHashCode() ?: 0
-        }
-    }
-
-    data class SuccessRssi(val rssi: Int) : BleResult()
-
-    data class Error(val message: String) : BleResult()
 }
