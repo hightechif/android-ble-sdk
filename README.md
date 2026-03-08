@@ -24,6 +24,14 @@ The project is structured into two main modules to ensure a strict separation of
 - Supports reading notifications, writing messages, reading RSSI directly from connected peripherals, and disabling notifications.
 - Automatically retries connection attempts and provides descriptive logging.
 
+### Standard SIG Profiles Supported
+The SDK provides fully typed Coroutine-based helpers and parsing extensions for standard Bluetooth SIG services:
+- **Heart Rate**: `subscribeToHeartRate()`, `BleExtensions.parseHeartRate()` 
+- **Blood Pressure**: `subscribeToBloodPressure()`, `BleExtensions.parseBloodPressure()`
+- **Health Thermometer**: `subscribeToHealthThermometer()`, `BleExtensions.parseHealthThermometer()`
+- **Weight Scale**: `subscribeToWeightScale()`, `BleExtensions.parseWeightMeasurement()`
+- **Device Information**: `readDeviceManufacturerName()`, `readBatteryLevel()`
+
 ### Architecture & Testability
 
 - **MVVM Architecture**: The app's `MainViewModel` purely delegates to `BleScanner` and exposes flows, keeping the ViewModel extremely thin.
@@ -60,7 +68,7 @@ The project is structured into two main modules to ensure a strict separation of
 ### Prerequisites
 
 - Android Studio Giraffe or newer
-- Minimum SDK: 24
+- Minimum SDK: 26
 - Target SDK: 34
 - Kotlin 1.9+
 
@@ -74,7 +82,8 @@ The sample app automatically requests necessary permissions at runtime depending
 To start a scan and observe devices from your ViewModel:
 
 ```kotlin
-val bleScanner = BleManager(applicationContext).scanner
+val bleManager = BleManager(applicationContext)
+val bleScanner = bleManager.scanner
 
 // Observe the filtered device list in real-time
 val scannedDevices = bleScanner.scannedDevices
@@ -84,7 +93,15 @@ bleScanner.startScan(viewModelScope)
 
 // Connect to a specific BLE device
 val connection = bleManager.connect(device)
-connection.discoverServices()
+connection?.connect()
+
+// GATT operations like discoverServices are suspend functions
+viewModelScope.launch {
+    connection?.discoverServices()
+    
+    // Example: Subscribe to a standard profile
+    connection?.subscribeToHeartRate()
+}
 ```
 
 ## Testing
