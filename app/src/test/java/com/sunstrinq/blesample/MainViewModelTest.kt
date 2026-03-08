@@ -19,10 +19,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import com.sunstrinq.blesdk.constant.BleConstants
+import com.sunstrinq.blesdk.model.BleNotification
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.util.UUID
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
@@ -309,6 +312,135 @@ class MainViewModelTest {
         assertThat(viewModel.logs.value).contains("Connecting to MyWatch...")
     }
 
+    @Test
+    fun `connectToDevice auto reads manufacturer and battery successfully`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        val connectionStateFlow = MutableStateFlow(ConnectionState.DISCONNECTED)
+        every { bleConnection.connectionState } returns connectionStateFlow
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.discoverServices() } returns true
+        coEvery { bleConnection.requestMtu(512) } returns Unit
+        coEvery { bleConnection.readDeviceManufacturerName() } returns "TestManufacturer"
+        coEvery { bleConnection.readBatteryLevel() } returns 99
+
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+        
+        connectionStateFlow.value = ConnectionState.CONNECTED
+        advanceUntilIdle()
+
+        assertThat(viewModel.logs.value).contains("Manufacturer: TestManufacturer")
+        assertThat(viewModel.logs.value).contains("Battery Level: 99%")
+    }
+
+    @Test
+    fun `connectToDevice handles manufacturer and battery read failures`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        val connectionStateFlow = MutableStateFlow(ConnectionState.DISCONNECTED)
+        every { bleConnection.connectionState } returns connectionStateFlow
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.discoverServices() } returns true
+        coEvery { bleConnection.requestMtu(512) } throws RuntimeException("MTU Error")
+        coEvery { bleConnection.readDeviceManufacturerName() } throws RuntimeException("Characteristic not found")
+        coEvery { bleConnection.readBatteryLevel() } throws RuntimeException("Battery error")
+
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+        
+        connectionStateFlow.value = ConnectionState.CONNECTED
+        advanceUntilIdle()
+
+        assertThat(viewModel.logs.value).contains("MTU Negotiation info: MTU Error")
+        assertThat(viewModel.logs.value).contains("Manufacturer info not supported by device")
+        assertThat(viewModel.logs.value).contains("Failed battery read: Battery error")
+    }
+
+    @Test
+    fun `connectToDevice processes heart rate notifications`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        
+        val notificationFlow = MutableStateFlow(BleNotification(UUID.randomUUID(), BleConstants.HEART_RATE_MEASUREMENT_CHAR_UUID, byteArrayOf(0x00, 0x4B)))
+        every { bleConnection.notifications } returns notificationFlow
+        coEvery { bleConnection.discoverServices() } returns true
+
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        assertThat(viewModel.logs.value).contains("Notification Heart Rate: 75 bpm")
+    }
+
+    @Test
+    fun `connectToDevice processes blood pressure notifications`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        
+        val bpBytes = byteArrayOf(0x00, 120, 0, 80, 0, 90, 0)
+        val notificationFlow = MutableStateFlow(BleNotification(UUID.randomUUID(), BleConstants.BLOOD_PRESSURE_MEASUREMENT_CHAR_UUID, bpBytes))
+        every { bleConnection.notifications } returns notificationFlow
+        coEvery { bleConnection.discoverServices() } returns true
+
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        assertThat(viewModel.logs.value).contains("Notification Blood Pressure:")
+    }
+    
+    @Test
+    fun `connectToDevice processes temperature notifications`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        
+        val tempBytes = byteArrayOf(0x00, 36, 0, 0, 0) 
+        val notificationFlow = MutableStateFlow(BleNotification(UUID.randomUUID(), BleConstants.TEMPERATURE_MEASUREMENT_CHAR_UUID, tempBytes))
+        every { bleConnection.notifications } returns notificationFlow
+        coEvery { bleConnection.discoverServices() } returns true
+
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        assertThat(viewModel.logs.value).contains("Notification Temperature:")
+    }
+
+    @Test
+    fun `connectToDevice processes weight notifications`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        
+        val weightBytes = byteArrayOf(0x00, 70, 0)
+        val notificationFlow = MutableStateFlow(BleNotification(UUID.randomUUID(), BleConstants.WEIGHT_MEASUREMENT_CHAR_UUID, weightBytes))
+        every { bleConnection.notifications } returns notificationFlow
+        coEvery { bleConnection.discoverServices() } returns true
+
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        assertThat(viewModel.logs.value).contains("Notification Weight:")
+    }
+
+    @Test
+    fun `connectToDevice processes unknown notifications`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        
+        val unknownChar = UUID.randomUUID()
+        val notificationFlow = MutableStateFlow(BleNotification(UUID.randomUUID(), unknownChar, byteArrayOf(0x01, 0x02)))
+        every { bleConnection.notifications } returns notificationFlow
+        coEvery { bleConnection.discoverServices() } returns true
+
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        assertThat(viewModel.logs.value).contains("Notification: $unknownChar -> 1, 2")
+    }
+
     // ─── subscribeToHeartRate ─────────────────────────────────────────────────────────
 
     @Test
@@ -360,6 +492,123 @@ class MainViewModelTest {
         advanceUntilIdle()
 
         // Assert
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+
+    // ─── subscribeToBloodPressure ──────────────────────────────────────────────────
+
+    @Test
+    fun `subscribeToBloodPressure returns log appended when called`() = runTest {
+        viewModel.subscribeToBloodPressure()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action: Enable BP notifications...")
+    }
+
+    @Test
+    fun `subscribeToBloodPressure returns success log when succeeds`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.subscribeToBloodPressure() } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        viewModel.subscribeToBloodPressure()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action: Subscribed to Blood Pressure")
+    }
+
+    @Test
+    fun `subscribeToBloodPressure returns error log when throws exception`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.subscribeToBloodPressure() } throws RuntimeException("BLE error")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        viewModel.subscribeToBloodPressure()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+
+    // ─── subscribeToThermometer ────────────────────────────────────────────────────
+
+    @Test
+    fun `subscribeToThermometer returns log appended when called`() = runTest {
+        viewModel.subscribeToThermometer()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action: Enable Temp notifications...")
+    }
+
+    @Test
+    fun `subscribeToThermometer returns success log when succeeds`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.subscribeToHealthThermometer() } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        viewModel.subscribeToThermometer()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action: Subscribed to Thermometer")
+    }
+
+    @Test
+    fun `subscribeToThermometer returns error log when throws exception`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.subscribeToHealthThermometer() } throws RuntimeException("BLE error")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        viewModel.subscribeToThermometer()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action failed")
+    }
+    
+    // ─── subscribeToWeightScale ────────────────────────────────────────────────────
+
+    @Test
+    fun `subscribeToWeightScale returns log appended when called`() = runTest {
+        viewModel.subscribeToWeightScale()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action: Enable Weight notifications...")
+    }
+
+    @Test
+    fun `subscribeToWeightScale returns success log when succeeds`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.subscribeToWeightScale() } returns Unit
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        viewModel.subscribeToWeightScale()
+        advanceUntilIdle()
+        assertThat(viewModel.logs.value).contains("Action: Subscribed to Weight Scale")
+    }
+
+    @Test
+    fun `subscribeToWeightScale returns error log when throws exception`() = runTest {
+        val device = BleDevice("TestDevice", "00:11:22:33:44:55", -50, mockk())
+        every { bleManager.connect(device) } returns bleConnection
+        every { bleConnection.connectionState } returns MutableStateFlow(ConnectionState.CONNECTED)
+        every { bleConnection.notifications } returns flowOf()
+        coEvery { bleConnection.subscribeToWeightScale() } throws RuntimeException("BLE error")
+        viewModel.connectToDevice(device)
+        advanceUntilIdle()
+
+        viewModel.subscribeToWeightScale()
+        advanceUntilIdle()
         assertThat(viewModel.logs.value).contains("Action failed")
     }
 
