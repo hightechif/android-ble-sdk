@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.edts.blesample"
+    namespace = "com.sunstrinq.blesample"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.edts.blesample"
+        applicationId = "com.sunstrinq.blesample"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

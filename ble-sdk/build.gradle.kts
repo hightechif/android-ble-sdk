@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.edts.blesdk"
+    namespace = "com.sunstrinq.blesdk"
     compileSdk = 34
 
     defaultConfig {
