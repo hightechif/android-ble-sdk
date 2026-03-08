@@ -243,12 +243,10 @@ class BleConnectionTest {
         every { characteristic.uuid } returns charUuid
 
         val expectedData = byteArrayOf(0x48, 0x65, 0x6C)
-        @Suppress("DEPRECATION")
-        every { characteristic.value } returns expectedData
 
         // Act — start waiting for exactly one notification before firing the callback
         val notificationDeferred = async { connection.notifications.first() }
-        callback.onCharacteristicChanged(gatt, characteristic)
+        callback.onCharacteristicChanged(gatt, characteristic, expectedData)
         val notification = notificationDeferred.await()
 
         // Assert
