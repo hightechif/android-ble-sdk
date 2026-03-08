@@ -95,7 +95,7 @@ class BleScanner(private val bluetoothAdapter: BluetoothAdapter) {
             } finally {
                 // Check if this job is still the active one before resetting state
                 // This prevents race conditions where a new scan starts before the old one finishes cleanup
-                if (scanJob?.isActive != true) {
+                if (scanJob === coroutineContext[Job]) {
                     _isScanning.value = false
                 }
             }
